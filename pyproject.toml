@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "fisher"
 version = "0.1.0"
 description = "Autonomous RL Agent for the Stardew Valley Fishing Minigame"
-readme = "plan.md"
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [
     { name = "Fisher Project Team" }
