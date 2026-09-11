@@ -1,0 +1,8 @@
+# Cursor Rules for Fisher
+
+Before planning or making any changes:
+1. Read `AGENTS.md` - this is the universal operating directive for all AI agents.
+2. Read `log.md` - review the execution history, recent code modifications, test runs, and handoff notes from previous agents.
+3. Read `plan.md` - understand the architectural design and phase exit gates.
+4. Run `pytest -v` to confirm baseline test suite passes.
+5. After finishing work, always append a structured session entry to `log.md` under "Agent Execution History & Handoff Log".
