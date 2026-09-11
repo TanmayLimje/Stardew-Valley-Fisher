@@ -238,6 +238,33 @@ This section provides an immutable, chronological record of every agent session.
 - **Recommended Immediate Next Step:** <Clear, actionable directive for incoming agent>
 ```
 
+### [2026-09-12] Agent Session: Antigravity (Gemini 3.8 Flash) — Comprehensive Project README & ELI5 Documentation
+
+- **Agent:** Antigravity (Gemini 3.8 Flash)
+- **Target Phase:** Universal Documentation & Project Onboarding
+- **Session Objective:** Create the master `README.md` combining the child-friendly (ELI5) conceptual phase breakdown with rigorous technical documentation of the codebase, multi-monitor topology, decompiled C# ground truth, and CLI commands.
+
+#### 1. Code Changes
+| Action | File Path | Rationale & Architectural Impact |
+|---|---|---|
+| [NEW] | [`README.md`](file:///d:/projects/fisher/README.md) | Master repository README containing the ELI5 phase breakdown, technical data paths, ground truth table from `BobberBar.cs`, multi-monitor topology, benchmarks, directory structure, and CLI references. |
+| [MODIFY] | [`pyproject.toml`](file:///d:/projects/fisher/pyproject.toml) | Updated project `readme` pointer from `plan.md` to `README.md`. |
+
+#### 2. Verification & Benchmarks Run
+- `pytest -v`: **42 passed, 1 warning in 3.99s** (Zero regressions across all test modules).
+- Verified file existence and markdown links in `README.md`.
+
+#### 3. Exit Gates & Deliverable Status
+- [x] Create root `README.md` containing the exact ELI5 explanation verbatim alongside technical codebase documentation.
+- [x] Document multi-monitor setup, Windows timing constraints, and DirectInput actuator architecture.
+- [x] All 42 unit tests passing without regression.
+
+#### 4. Review & Handoff Notes for Next Agent
+- **Observations on Preceding Code:** The documentation directly bridges the gap between high-level conceptual understanding and exact technical implementation details.
+- **Recommended Immediate Next Step:** Ready to begin **Phase 3: Live Environment Integration & Transfer Evaluation** (`src/fisher/env/live_env.py` and `scripts/eval_live.py`).
+
+---
+
 ### [2026-09-12] Agent Session: Antigravity (Gemini 3.8 Flash) — Real 1080p Screenshot Calibration & Fish Occlusion Fix
 
 - **Agent:** Antigravity (Gemini 3.8 Flash)
