@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 import time
+
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 if sys.platform == "win32":
     try:
@@ -14,6 +19,7 @@ if sys.platform == "win32":
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
 
 from rich.console import Console
 from rich.table import Table
@@ -226,11 +232,32 @@ def main() -> None:
         help="Total timesteps for --train-sim",
     )
     parser.add_argument(
-        "--eval-episodes",
-        type=int,
-        default=20,
-        help="Episodes per difficulty tier for --eval-sim",
+        "--bench-latency",
+        action="store_true",
+        help="Run end-to-end pipeline latency benchmark (capture -> extract -> infer -> dispatch)",
     )
+    parser.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Run interactive/automated ROI & track calibration tool",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Run 60 Hz minigame telemetry recorder",
+    )
+    parser.add_argument(
+        "--record-synthetic",
+        action="store_true",
+        help="Run 60 Hz minigame recorder using synthetic frame generator",
+    )
+    parser.add_argument(
+        "--record-duration",
+        type=float,
+        default=60.0,
+        help="Duration in seconds for --record (default: 60.0s; press Ctrl+C anytime to stop early)",
+    )
+
 
     args = parser.parse_args()
     console = Console()
@@ -244,6 +271,18 @@ def main() -> None:
     elif args.jitter_test:
         results = measure_jitter(target_hz=30.0, iterations=100)
         console.print(f"Jitter Results (30 Hz): p50={results['p50_ms']:.3f}ms, p99={results['p99_ms']:.3f}ms, max={results['max_ms']:.3f}ms")
+    elif args.bench_latency:
+        from scripts.bench_latency import run_latency_benchmark
+        run_latency_benchmark()
+    elif args.calibrate:
+        from scripts.calibrate import run_calibration
+        run_calibration()
+    elif args.record:
+        from scripts.record import record_session
+        record_session(max_duration_s=args.record_duration, synthetic_mode=False)
+    elif args.record_synthetic:
+        from scripts.record import record_session
+        record_session(max_duration_s=args.record_duration, synthetic_mode=True)
     elif args.train_sim:
         import subprocess
         cmd = [sys.executable, "scripts/train_sim.py", "--timesteps", str(args.timesteps)]
@@ -257,8 +296,9 @@ def main() -> None:
         console.print(
             f"[bold white]Fisher v0.1.0[/bold white] — Loaded configuration from {config.game.get('window_title')}"
         )
-        console.print("Run with --help to see available commands, or --train-sim / --eval-sim / --check-monitors.")
+        console.print("Run with --help to see available commands, or --bench-latency / --calibrate / --record / --train-sim / --eval-sim.")
 
 
 if __name__ == "__main__":
     main()
+

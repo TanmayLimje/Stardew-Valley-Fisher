@@ -1,0 +1,22 @@
+game:
+  window_title: Stardew Valley
+  resolution:
+  - 1920
+  - 1080
+  ui_zoom: 100
+capture:
+  driver: bettercam
+  monitor_auto: true
+  monitor_idx: 1
+  target_fps: 60
+  roi:
+    x0: 720
+    y0: 150
+    x1: 910
+    y1: 800
+  track_bounds:
+    x0: 76
+    y0: 47
+    x1: 112
+    y1: 615
+    height_px: 568

@@ -47,6 +47,7 @@ htmlcov/
 # Project runtime reports and recordings
 reports/*.jsonl
 reports/*.csv
+reports/recordings/
 data/recordings/
 models/*.zip
 models/*.pkl
