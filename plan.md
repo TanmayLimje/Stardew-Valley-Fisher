@@ -97,9 +97,10 @@ flowchart TD
 | Screen capture | **bettercam** (DXGI Desktop Duplication), `mss` fallback | Region grab ~240 fps capable; `d3dshot` rejected (unmaintained fork lineage) |
 | CV | `opencv-python` (HSV masks, horizontal saliency scan, template match) | Contrast-invariant fish centroid tracking; column scan for progress meter |
 | Input | **pydirectinput** (DirectInput scan codes); **Interception driver** as escalation path | Anti-drop vs `pyautogui`; **critical: set `pydirectinput.PAUSE = 0.0`**; verify process admin integrity |
-| Window & Timing | `pywin32` (`win32gui`), `winmm.timeBeginPeriod(1)` | High-precision 1 ms timer resolution; foreground checks, window rect |
+| Window, Display & Timing | `pywin32` (`win32gui`, `win32api`), `winmm.timeBeginPeriod(1)` | High-precision 1 ms timer resolution; dynamic monitor binding (`MonitorFromWindow`), foreground checks, window rect across multi-monitor topology |
 | Killswitch | `keyboard` global hotkey (F9), supervisor thread | Works at same integrity level; Ctrl+F9 = hard process abort |
-| Logging / metrics | `tensorboard`, structured JSONL per episode, CSV session summary | Offline analysis of sim2real gap |
+| Logging & Metrics | `tensorboard`, structured JSONL per episode, CSV session summary | Offline analysis of sim2real gap |
+| Terminal Dashboard | `rich` (fixed-grid Live layout, panels, tables) | Disciplined, real-time training & session telemetry on dedicated monitor (e.g. laptop display) |
 | Config | `pyyaml`, single-file `configs/default.yaml` + overlay files | Every magic number lives in config |
 | Tests | `pytest`, mock capture/actuator drivers for CI without hardware | Physics invariants, golden-image CV tests, env contract |
 
@@ -508,11 +509,11 @@ terminal = extractor.check_terminal()
 > Effort estimates assume one engineer, part-time. `- [ ]` checkboxes are the working task list; update as items complete.
 
 ### Phase 0 — Bootstrap & System Precision (0.5 d)
-- [ ] Repo scaffold per §10, `pyproject.toml` with pinned deps (gymnasium, stable-baselines3 ≥ 2.3, torch, bettercam, opencv-python, pydirectinput, pywin32, keyboard, pyyaml, tensorboard, pytest)
-- [ ] `fisher.utils.timing`: initialize `winmm.timeBeginPeriod(1)` to lock 1 ms OS timer resolution; elevation check (`IsUserAnAdmin`)
-- [ ] `configs/default.yaml` schema + loader; structured logger; seed-everything util
-- [ ] Mock `CaptureDriver` / `Actuator` interfaces so all subsequent phases are CI-testable headless
-- **Done when:** `pytest` green with mocked drivers; `python -m fisher --dry-run` executes a fake episode end-to-end with < 2 ms scheduler jitter.
+- [x] Repo scaffold per §10, `pyproject.toml` with pinned deps (gymnasium, stable-baselines3 ≥ 2.3, torch, bettercam, opencv-python, pydirectinput, pywin32, keyboard, pyyaml, tensorboard, pytest)
+- [x] `fisher.utils.timing`: initialize `winmm.timeBeginPeriod(1)` to lock 1 ms OS timer resolution; elevation check (`IsUserAnAdmin`)
+- [x] `configs/default.yaml` schema + loader; structured logger; seed-everything util
+- [x] Mock `CaptureDriver` / `Actuator` interfaces so all subsequent phases are CI-testable headless
+- **Done when:** `pytest` green with mocked drivers; `python -m fisher --dry-run` executes a fake episode end-to-end with < 2 ms scheduler jitter. [COMPLETED]
 
 ### Phase 1 — Simulator & Decompiled C# Ground Truth (2.5 d)
 - [ ] Decompile `StardewValley.Menus.BobberBar` from `Stardew Valley.dll` (ILSpy/dotPeek); extract exact numeric constants: gravity step (`0.25f`), thrust delta, zero damping, bounce restitution (2/3), bound pinning, in-bar gravity ×0.6, and the 5 fish archetype state equations
@@ -608,15 +609,16 @@ fisher/
 ├─ scripts/                    # calibrate.py · record.py · bench_latency.py
 │                              # train_sim.py · eval_sim.py · eval_live.py · run.py
 ├─ src/fisher/
-│  ├─ config.py  logging.py
-│  ├─ capture/    base.py  bettercam_driver.py  mss_driver.py
+│  ├─ config.py  logging.py  cli.py
+│  ├─ capture/    base.py  bettercam_driver.py  mss_driver.py  mock_driver.py
 │  ├─ vision/     extractor.py  tracker.py  bite.py  calibrate.py  templates/
-│  ├─ input/      base.py  pydirectinput_actuator.py  (interception_actuator.py — later)
+│  ├─ input/      base.py  pydirectinput_actuator.py  mock_actuator.py  (interception_actuator.py — later)
 │  ├─ sim/        physics.py  fish.py  env_sim.py  sysid.py
 │  ├─ env/        live_env.py  feature_builder.py  rewards.py   # rewards shared sim/live
 │  ├─ agent/      ppo.py  policies.py  finetune.py
 │  ├─ orchestration/  fsm.py  session.py  safety.py
-│  └─ utils/      timing.py  mathutil.py
+│  ├─ ui/         dashboard.py          # Rich live telemetry console for dedicated monitor
+│  └─ utils/      timing.py  mathutil.py  display.py   # multi-display query & dynamic window-monitor binding
 ├─ tests/         # physics invariants · golden-image CV · env contract (check_env)
 │                 # FSM dry-run with mocked drivers · sysid regression on synthetic data
 ├─ data/          goldens/  recordings/
@@ -685,8 +687,15 @@ game:
 
 capture:
   driver: bettercam          # bettercam | mss
+  monitor_auto: true         # auto-detect display containing window_title
+  monitor_idx: null          # manual fallback/override index (0, 1, 2...)
   roi: {x0: 1520, y0: 220, x1: 1900, y1: 980}   # from calibrate.py
   target_fps: 60
+
+ui:
+  dashboard_enabled: true    # Rich terminal telemetry console
+  refresh_hz: 4              # UI redraw rate
+  target_display: laptop     # target layout sizing (laptop 1536x864 / standard)
 
 control:
   hz: 30                     # 30 => 2 ticks @ 60Hz; 20 => 3 ticks

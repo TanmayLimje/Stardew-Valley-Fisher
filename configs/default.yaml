@@ -1,0 +1,73 @@
+game:
+  window_title: "Stardew Valley"
+  resolution: [1920, 1080]
+  ui_zoom: 100
+
+capture:
+  driver: bettercam          # bettercam | mss | mock
+  monitor_auto: true         # auto-detect display containing window_title
+  monitor_idx: null          # manual fallback/override index (0, 1, 2...)
+  roi:
+    x0: 1520
+    y0: 220
+    x1: 1900
+    y1: 980
+  target_fps: 60
+
+ui:
+  dashboard_enabled: true    # Rich terminal telemetry console
+  refresh_hz: 4              # UI redraw rate
+  target_display: laptop     # target layout sizing (laptop 1536x864 / standard)
+
+control:
+  hz: 30                     # 30 => 2 ticks @ 60Hz; 20 => 3 ticks
+  action_set: discrete2      # discrete2 | discrete3_tap
+  timer_period_ms: 1         # timeBeginPeriod resolution
+
+reward:
+  w_o: 0.02
+  w_p: 5.0
+  w_v: 0.002
+  w_s: 0.005
+  r_win: 10.0
+  r_lose: 5.0
+  gamma: 0.999
+  t_max_s: 30
+
+ppo:
+  n_envs: 32
+  n_steps: 512
+  batch_size: 512
+  epochs: 10
+  learning_rate: 3.0e-4
+  clip_range: 0.2
+  gae_lambda: 0.95
+  ent_coef_start: 0.01
+  ent_coef_end: 0.001
+  policy_arch: [64, 64]
+  total_timesteps: 3.0e7
+
+sim:
+  seed_params:
+    g_out: 1.58
+    g_in: 0.95
+    damp: 1.0
+    e_bot: 0.667
+    e_top: 0.667
+    p0: 0.30
+  randomization: true
+  curriculum: ["A", "B", "C"]
+
+lifecycle:
+  food_hotbar_slot: 1        # hotbar key for food consumption (e.g. '1' for salad/cheese)
+  stamina_threshold_pct: 15  # consume food when stamina drops below 15%
+  night_cutoff_hour: 25.5    # 1:30 AM in game decimal time (24.0 + 1.5)
+
+safety:
+  killswitch_key: f9
+  hard_abort: ctrl+f9
+  max_episodes: 100
+  max_session_min: 45
+  ui_lost_timeout_ms: 500
+  tracker_lost_frames: 15
+  capture_fps_floor: 45
