@@ -207,6 +207,30 @@ def main() -> None:
         action="store_true",
         help="Run 100-tick OS scheduler precision benchmark",
     )
+    parser.add_argument(
+        "--train-sim",
+        action="store_true",
+        help="Train PPO policy in Stardew Valley fishing simulation",
+    )
+    parser.add_argument(
+        "--eval-sim",
+        type=str,
+        nargs="?",
+        const="models/ppo_fisher_latest.zip",
+        help="Evaluate policy checkpoint or baseline (e.g. 'bang-bang', 'random', or model path)",
+    )
+    parser.add_argument(
+        "--timesteps",
+        type=int,
+        default=1_500_000,
+        help="Total timesteps for --train-sim",
+    )
+    parser.add_argument(
+        "--eval-episodes",
+        type=int,
+        default=20,
+        help="Episodes per difficulty tier for --eval-sim",
+    )
 
     args = parser.parse_args()
     console = Console()
@@ -220,12 +244,20 @@ def main() -> None:
     elif args.jitter_test:
         results = measure_jitter(target_hz=30.0, iterations=100)
         console.print(f"Jitter Results (30 Hz): p50={results['p50_ms']:.3f}ms, p99={results['p99_ms']:.3f}ms, max={results['max_ms']:.3f}ms")
+    elif args.train_sim:
+        import subprocess
+        cmd = [sys.executable, "scripts/train_sim.py", "--timesteps", str(args.timesteps)]
+        subprocess.run(cmd)
+    elif args.eval_sim:
+        import subprocess
+        cmd = [sys.executable, "scripts/eval_sim.py", "--policy", args.eval_sim, "--episodes", str(args.eval_episodes)]
+        subprocess.run(cmd)
     else:
         config = load_config()
         console.print(
             f"[bold white]Fisher v0.1.0[/bold white] — Loaded configuration from {config.game.get('window_title')}"
         )
-        console.print("Run with --help to see available commands, or --check-monitors / --dry-run.")
+        console.print("Run with --help to see available commands, or --train-sim / --eval-sim / --check-monitors.")
 
 
 if __name__ == "__main__":
