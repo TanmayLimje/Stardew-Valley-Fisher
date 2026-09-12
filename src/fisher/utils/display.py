@@ -67,15 +67,40 @@ def get_connected_displays() -> List[DisplayInfo]:
 
 
 def find_window_hwnd(window_title: str) -> Optional[int]:
-    """Find top-level window handle by title."""
+    """Find top-level window handle by fuzzy case-insensitive substring match.
+
+    Searches all visible top-level windows for any whose title contains
+    ``window_title`` (case-insensitive). Falls back to exact ``FindWindow``
+    for efficiency, then tries ``EnumWindows`` with substring matching.
+    This handles SMAPI, Steam overlay, or versioned titles like
+    "Stardew Valley 1.6.15".
+    """
     if sys.platform != "win32":
         return None
     try:
         import win32gui
 
+        # Fast path: exact title match
         hwnd = win32gui.FindWindow(None, window_title)
         if hwnd and win32gui.IsWindow(hwnd):
             return hwnd
+
+        # Slow path: fuzzy substring search across all top-level windows
+        needle = window_title.lower()
+        matches: list[int] = []
+
+        def _enum_cb(hwnd: int, results: list) -> None:
+            if win32gui.IsWindowVisible(hwnd):
+                try:
+                    text = win32gui.GetWindowText(hwnd)
+                    if text and needle in text.lower():
+                        results.append(hwnd)
+                except Exception:
+                    pass
+
+        win32gui.EnumWindows(_enum_cb, matches)
+        if matches:
+            return matches[0]
     except Exception:
         pass
     return None

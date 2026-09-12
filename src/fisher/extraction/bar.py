@@ -101,8 +101,9 @@ class BobberBarExtractor:
             area = stats[i, cv2.CC_STAT_AREA]
             h_px = stats[i, cv2.CC_STAT_HEIGHT]
             w_px = stats[i, cv2.CC_STAT_WIDTH]
-            # Bobber bar is typically 20-40 px wide and 60-150 px tall
-            if area > 100 and h_px >= 25 and area > best_area:
+            # Bobber bar is typically 20-40 px wide and 60-180 px tall (max ~200 px with Cork Bobber)
+            # Rejects oversized scenery grass / tree components (area > 5500, height > 240)
+            if area > 100 and 25 <= h_px <= 240 and area <= 5500 and area > best_area:
                 best_area = area
                 best_comp_idx = i
 

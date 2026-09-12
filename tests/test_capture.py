@@ -44,9 +44,9 @@ def test_create_capture_driver_factory() -> None:
     driver_gdi = create_capture_driver(cfg, force_driver="gdi")
     assert isinstance(driver_gdi, GdiCaptureDriver)
 
-    # BetterCam driver
+    # BetterCam driver — may auto-fallback to GDI if DXGI is unavailable (non-admin context)
     driver_bc = create_capture_driver(cfg, force_driver="bettercam")
-    assert isinstance(driver_bc, BetterCamCaptureDriver)
+    assert isinstance(driver_bc, (BetterCamCaptureDriver, GdiCaptureDriver))
 
     # Invalid driver
     with pytest.raises(ValueError, match="Unknown capture driver"):

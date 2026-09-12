@@ -8,6 +8,7 @@ capture:
   driver: bettercam
   monitor_auto: true
   monitor_idx: 1
+  dynamic_roi: true
   target_fps: 60
   roi:
     x0: 720

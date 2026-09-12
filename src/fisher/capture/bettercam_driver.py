@@ -90,8 +90,23 @@ class BetterCamCaptureDriver(CaptureDriver):
             self._last_error = None
             return True
         except Exception as exc:
-            self._last_error = f"BetterCam init failed: {exc}"
-            logger.warning("%s (desktop composition or active session may be unavailable)", self._last_error)
+            exc_str = str(exc)
+            # Provide actionable diagnostics for common failure modes
+            if "Access is denied" in exc_str or "-2147024891" in exc_str:
+                self._last_error = (
+                    "DXGI DuplicateOutput access denied. This usually means: "
+                    "(1) The terminal is not running as Administrator — right-click PowerShell → 'Run as administrator'; "
+                    "(2) Another process already holds the exclusive DXGI duplication handle — kill zombie fisher/python processes; "
+                    "(3) The desktop is locked or a UAC prompt is active."
+                )
+            elif "DXGI_ERROR_NOT_CURRENTLY_AVAILABLE" in exc_str:
+                self._last_error = (
+                    "DXGI output not currently available. Another application (OBS, Discord overlay, etc.) "
+                    "may hold the exclusive Desktop Duplication interface on this output."
+                )
+            else:
+                self._last_error = f"BetterCam init failed: {exc}"
+            logger.warning("%s", self._last_error)
             self._camera = None
             return False
 

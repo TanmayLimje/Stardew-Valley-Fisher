@@ -223,7 +223,50 @@ def main() -> None:
         type=str,
         nargs="?",
         const="models/ppo_fisher_latest.zip",
-        help="Evaluate policy checkpoint or baseline (e.g. 'bang-bang', 'random', or model path)",
+        help="Evaluate policy checkpoint or baseline in simulation (e.g. 'models/ppo_fisher_best.zip')",
+    )
+    parser.add_argument(
+        "--eval-live",
+        action="store_true",
+        help="Run Phase 3 live evaluation harness on Stardew Valley client",
+    )
+    parser.add_argument(
+        "--eval-episodes",
+        type=int,
+        default=20,
+        help="Number of episodes to evaluate for --eval-sim or --eval-live (default: 20)",
+    )
+    parser.add_argument(
+        "--eval-mock",
+        action="store_true",
+        help="Run evaluation with mock drivers (headless automated testing without physical game)",
+    )
+    parser.add_argument(
+        "--eval-baseline",
+        action="store_true",
+        help="Evaluate Bang-Bang pure-pursuit baseline instead of PPO policy",
+    )
+    parser.add_argument(
+        "--policy-path",
+        type=str,
+        default="models/ppo_fisher_best.zip",
+        help="Path to PPO model weights for live or sim evaluation",
+    )
+    parser.add_argument(
+        "--require-foreground",
+        action="store_true",
+        help="Enforce strict foreground window focus requirement (default: disabled, safe auto-cursor positioning used)",
+    )
+    parser.add_argument(
+        "--no-require-foreground",
+        action="store_true",
+        help="Disable foreground window focus requirement",
+    )
+    parser.add_argument(
+        "--wait-timeout",
+        type=float,
+        default=90.0,
+        help="Timeout in seconds when waiting for minigame UI to appear (default: 90.0s)",
     )
     parser.add_argument(
         "--timesteps",
@@ -257,7 +300,11 @@ def main() -> None:
         default=60.0,
         help="Duration in seconds for --record (default: 60.0s; press Ctrl+C anytime to stop early)",
     )
-
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Display real-time visual preview of Screen 3 capture and BobberBar detection (standalone or with --eval-live)",
+    )
 
     args = parser.parse_args()
     console = Console()
@@ -291,12 +338,27 @@ def main() -> None:
         import subprocess
         cmd = [sys.executable, "scripts/eval_sim.py", "--policy", args.eval_sim, "--episodes", str(args.eval_episodes)]
         subprocess.run(cmd)
+    elif args.eval_live:
+        from scripts.eval_live import run_live_evaluation
+        require_fg = args.require_foreground and not args.no_require_foreground
+        run_live_evaluation(
+            episodes=args.eval_episodes,
+            policy_path=args.policy_path,
+            use_baseline=args.eval_baseline,
+            mock_mode=args.eval_mock,
+            require_foreground=require_fg,
+            wait_timeout=args.wait_timeout,
+            preview=args.preview,
+        )
+    elif args.preview:
+        from fisher.ui.preview import run_preview
+        run_preview()
     else:
         config = load_config()
         console.print(
             f"[bold white]Fisher v0.1.0[/bold white] — Loaded configuration from {config.game.get('window_title')}"
         )
-        console.print("Run with --help to see available commands, or --bench-latency / --calibrate / --record / --train-sim / --eval-sim.")
+        console.print("Run with --help to see available commands, or --eval-live / --preview / --calibrate / --train-sim.")
 
 
 if __name__ == "__main__":

@@ -121,3 +121,36 @@ def measure_jitter(target_hz: float = 30.0, iterations: int = 100) -> Dict[str, 
         "p99_ms": p99,
         "max_ms": max_jitter,
     }
+
+
+class HighPrecisionTimer:
+    """Tick-synchronized high-precision timer for real-time control loops (e.g. 30 Hz)."""
+
+    def __init__(self, target_hz: float = 30.0, timer_period_ms: int = 1):
+        self.target_hz = target_hz
+        self.period_s = 1.0 / target_hz
+        self.timer_period_ms = timer_period_ms
+        self._win_timer = WindowsTimerPrecision.get_singleton(timer_period_ms)
+        self._win_timer.acquire()
+        self._next_tick = time.perf_counter()
+
+    def reset(self) -> None:
+        """Reset the tick anchor to the current clock time."""
+        self._next_tick = time.perf_counter()
+
+    def sleep_until_next_tick(self) -> float:
+        """Sleep until the next scheduled tick using hybrid sleep-spinlock."""
+        self._next_tick += self.period_s
+        now = time.perf_counter()
+        remaining = self._next_tick - now
+        if remaining > 0:
+            hybrid_sleep(remaining)
+        else:
+            # Timing overrun: resync next tick to current time to avoid cumulative drift
+            self._next_tick = time.perf_counter()
+        return time.perf_counter()
+
+    def close(self) -> None:
+        """Release multimedia timer resolution."""
+        if self._win_timer is not None:
+            self._win_timer.release()

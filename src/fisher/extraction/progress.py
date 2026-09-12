@@ -15,17 +15,23 @@ class ProgressTracker:
     def __init__(
         self,
         track_detector: TrackDetector,
-        meter_x_offset: int = 32,  # Verified exact offset from track x1 to progress column center
-        meter_width: int = 12,      # Verified width of progress bar fill column
+        meter_x_offset: int = 31,  # Verified exact offset from track x1 to progress column center
+        meter_width: int = 8,      # Inner fill width of progress bar (avoids outer border overlap)
+        zero_debounce_frames: int = 8,  # ~250ms of sustained zeros needed to declare zero progress
     ) -> None:
         self.track_detector = track_detector
         self.meter_x_offset = meter_x_offset
         self.meter_width = meter_width
+        self.zero_debounce_frames = zero_debounce_frames
 
         self._last_known_p: float = 0.30  # Stardew Valley default initial progress
+        self._has_detected_progress: bool = False
+        self._consecutive_zeros: int = 0
 
     def reset(self) -> None:
         self._last_known_p = 0.30
+        self._has_detected_progress = False
+        self._consecutive_zeros = 0
 
     def extract(self, roi_frame: np.ndarray) -> Tuple[float, float]:
         """
@@ -34,61 +40,78 @@ class ProgressTracker:
             (p in [0, 1], confidence in [0, 1])
         """
         if roi_frame is None or roi_frame.size == 0:
-            return self._last_known_p, 0.0
+            if self._has_detected_progress:
+                self._consecutive_zeros += 1
+                if self._consecutive_zeros >= self.zero_debounce_frames:
+                    self._last_known_p = 0.0
+                    return 0.0, 0.0
+                decayed = max(0.0, self._last_known_p - 0.006)
+                self._last_known_p = decayed
+                return decayed, 0.2
+            return 0.0, 0.0
 
         tb = self.track_detector.bounds
         h_frame, w_frame = roi_frame.shape[:2]
 
-        # Calculate progress meter column bounds
-        col_x0 = tb.x1 + self.meter_x_offset - self.meter_width // 2
-        col_x1 = col_x0 + self.meter_width
-        col_y0 = tb.y0 - 4   # Progress bar is 580 px tall (track is 568 px)
-        col_y1 = tb.y1 + 4
+        # Scan nominal progress meter column with safe jitter tolerance (+/- 4 px)
+        best_filled = 0
+        nominal_cx = tb.x1 + self.meter_x_offset
+        total_h = float(tb.y1 - tb.y0 + 8)
 
-        # Bounds safety checks
-        col_x0 = max(0, min(col_x0, w_frame - 2))
-        col_x1 = max(col_x0 + 1, min(col_x1, w_frame))
-        col_y0 = max(0, min(col_y0, h_frame - 2))
-        col_y1 = max(col_y0 + 1, min(col_y1, h_frame))
+        dx_candidates = [0, -2, 2, -4, 4]
+        for dx in dx_candidates:
+            cx = nominal_cx + dx
+            col_x0 = max(0, cx - self.meter_width // 2 + 1)
+            col_x1 = min(w_frame, cx + self.meter_width // 2 - 1)
+            if col_x1 <= col_x0:
+                continue
+            col_y0 = max(0, tb.y0 - 4)
+            col_y1 = min(h_frame, tb.y1 + 4)
+            crop = roi_frame[col_y0:col_y1, col_x0:col_x1]
+            if crop.size == 0:
+                continue
 
-        col_crop = roi_frame[col_y0:col_y1, col_x0:col_x1]
-        if col_crop.size == 0:
-            return self._last_known_p, 0.0
-
-        total_rows = col_crop.shape[0]
-        if total_rows < 50:
-            return self._last_known_p, 0.0
-
-        hsv = cv2.cvtColor(col_crop, cv2.COLOR_BGR2HSV)
-        sat = hsv[:, :, 1]
-        val = hsv[:, :, 2]
-
-        # The progress bar is brightly colored (Red/Orange/Yellow/Green) when filled,
-        # with high saturation (S >= 60) and high brightness (V >= 170).
-        # Unfilled background is darker (V <= 130).
-        is_filled_pixel = (sat >= 60) & (val >= 170)
-
-        # Average across the horizontal width of the column
-        row_fill_ratio = np.mean(is_filled_pixel, axis=1)  # shape: (total_rows,)
-
-        # Scan bottom-up (from row index total_rows - 1 up to 0)
-        # Find the transition from filled (ratio >= 0.5) to unfilled
-        filled_count = 0
-        for r in range(total_rows - 1, -1, -1):
-            if row_fill_ratio[r] >= 0.4:
-                filled_count += 1
+            hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            # Bright filled progress meter (red/orange/yellow/green)
+            is_filled = (hsv[:, :, 1] >= 60) & (hsv[:, :, 2] >= 165)
+            row_fill = np.mean(is_filled, axis=1)
+            filled_indices = np.where(row_fill >= 0.4)[0]
+            # Stardew Valley BobberBar progress fills upwards from bottom
+            if len(filled_indices) > 0 and filled_indices[-1] >= (crop.shape[0] - 35):
+                cnt = len(filled_indices)
             else:
-                # Small noise filter: check if preceding 3 rows are also unfilled
-                lookahead = max(0, r - 3)
-                if np.mean(row_fill_ratio[lookahead : r + 1]) < 0.3:
-                    break
-                else:
-                    filled_count += 1
+                cnt = 0
+            if cnt > best_filled and cnt <= total_h + 10:
+                best_filled = cnt
 
-        p_raw = float(filled_count) / float(total_rows)
-        p_clamped = float(np.clip(p_raw, 0.0, 1.0))
+        if best_filled == 0:
+            if not self._has_detected_progress:
+                # Inactive scene before minigame starts
+                self._last_known_p = 0.0
+                return 0.0, 0.8
 
-        confidence = min(1.0, float(np.mean(row_fill_ratio[:filled_count])) + 0.2) if filled_count > 0 else 0.8
+            # Active minigame experienced a single-frame dropout / occlusion
+            self._consecutive_zeros += 1
+            if self._consecutive_zeros >= self.zero_debounce_frames:
+                self._last_known_p = 0.0
+                return 0.0, 0.8
+
+            # Physical rate-limiting: progress drains at 0.003/tick (0.006/step @ 30Hz)
+            decayed = max(0.0, self._last_known_p - 0.006)
+            self._last_known_p = decayed
+            return decayed, 0.4
+
+        # Valid progress bar detected
+        self._consecutive_zeros = 0
+        p_clamped = float(np.clip(best_filled / max(1.0, total_h), 0.0, 1.0))
+        if p_clamped >= 0.08:
+            self._has_detected_progress = True
+
         self._last_known_p = p_clamped
-
+        confidence = 0.95
         return p_clamped, confidence
+
+    def has_progress_fill(self, roi_frame: np.ndarray, min_progress: float = 0.04) -> bool:
+        """Check if roi_frame contains a valid non-empty progress meter fill."""
+        p, _ = self.extract(roi_frame)
+        return bool(p >= min_progress)
