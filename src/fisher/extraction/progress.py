@@ -58,7 +58,7 @@ class ProgressTracker:
         nominal_cx = tb.x1 + self.meter_x_offset
         total_h = float(tb.y1 - tb.y0 + 8)
 
-        dx_candidates = [0, -2, 2, -4, 4]
+        dx_candidates = [0, 2, -2, 4, -4, 6]
         for dx in dx_candidates:
             cx = nominal_cx + dx
             col_x0 = max(0, cx - self.meter_width // 2 + 1)
@@ -73,11 +73,16 @@ class ProgressTracker:
 
             hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
             # Bright filled progress meter (red/orange/yellow/green)
-            is_filled = (hsv[:, :, 1] >= 60) & (hsv[:, :, 2] >= 165)
+            # BobberBar.cs:461: Color((int)(255 - distanceFromCatch * 255), (int)(distanceFromCatch * 255), 0)
+            # Filled progress is vivid (V >= 165, S >= 60), whereas unfilled background channel is dark (V <= 145).
+            # Blue suppression (b <= 120) and valid hue reject water/sky reflections.
+            b_chan = crop[:, :, 0]
+            valid_hue = (hsv[:, :, 0] <= 95) | (hsv[:, :, 0] >= 165)
+            is_filled = (hsv[:, :, 1] >= 60) & (hsv[:, :, 2] >= 165) & (b_chan <= 120) & valid_hue
             row_fill = np.mean(is_filled, axis=1)
             filled_indices = np.where(row_fill >= 0.4)[0]
             # Stardew Valley BobberBar progress fills upwards from bottom
-            if len(filled_indices) > 0 and filled_indices[-1] >= (crop.shape[0] - 35):
+            if len(filled_indices) > 0 and filled_indices[-1] >= (crop.shape[0] - 45):
                 cnt = len(filled_indices)
             else:
                 cnt = 0

@@ -25,6 +25,142 @@ from fisher.extraction.types import ExtractionResult, TrackBounds
 logger = logging.getLogger(__name__)
 
 
+class PreviewVideoRecorder:
+    """Records real-time annotated preview frames and metadata to an MP4 video."""
+
+    def __init__(
+        self,
+        output_path: Optional[str | Path] = None,
+        fps: float = 30.0,
+        frame_size: Tuple[int, int] = (960, 540),
+        record_metadata: bool = True,
+    ) -> None:
+        self.fps = float(fps)
+        self.frame_size = frame_size  # (width, height)
+        self.record_metadata = record_metadata
+        self.writer: Optional[cv2.VideoWriter] = None
+        self.meta_file = None
+        self.output_path: Optional[Path] = None
+        self.meta_path: Optional[Path] = None
+        self.frame_count: int = 0
+        self.start_time: float = 0.0
+        self.is_recording: bool = False
+
+        if output_path is not None:
+            self.start(output_path)
+
+    def start(self, output_path: Optional[str | Path] = None) -> Path:
+        """Start or resume recording to the specified MP4 file."""
+        if self.is_recording:
+            return self.output_path
+
+        if output_path is None:
+            from datetime import datetime
+            t_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            repo_root = Path(__file__).resolve().parent.parent.parent
+            self.output_path = repo_root / "reports" / "recordings" / f"preview_{t_str}.mp4"
+        else:
+            self.output_path = Path(output_path)
+            if not self.output_path.suffix:
+                self.output_path = self.output_path.with_suffix(".mp4")
+
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        self.writer = cv2.VideoWriter(
+            str(self.output_path),
+            fourcc,
+            self.fps,
+            self.frame_size,
+        )
+
+        if not self.writer.isOpened():
+            # Fallback to XVID codec if mp4v is unavailable on this host platform
+            fourcc_fallback = cv2.VideoWriter_fourcc(*"XVID")
+            self.writer = cv2.VideoWriter(
+                str(self.output_path.with_suffix(".avi")),
+                fourcc_fallback,
+                self.fps,
+                self.frame_size,
+            )
+            if self.writer.isOpened():
+                self.output_path = self.output_path.with_suffix(".avi")
+
+        if self.record_metadata:
+            self.meta_path = self.output_path.with_suffix(".jsonl")
+            self.meta_file = open(self.meta_path, "w", encoding="utf-8")
+
+        self.start_time = time.time()
+        self.frame_count = 0
+        self.is_recording = True
+        logger.info("Preview video recording started: %s", self.output_path)
+        return self.output_path
+
+    def write_frame(
+        self,
+        frame: np.ndarray,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        """Write an annotated frame and optional telemetry metadata."""
+        if not self.is_recording or self.writer is None:
+            return
+
+        if (frame.shape[1], frame.shape[0]) != self.frame_size:
+            frame = cv2.resize(frame, self.frame_size, interpolation=cv2.INTER_LINEAR)
+
+        self.writer.write(frame)
+        self.frame_count += 1
+
+        if self.meta_file is not None and metadata is not None:
+            import json
+            entry = {
+                "frame": self.frame_count,
+                "timestamp": time.time(),
+                "elapsed_s": round(time.time() - self.start_time, 4),
+                **metadata,
+            }
+            self.meta_file.write(json.dumps(entry) + "\n")
+
+    def stop(self) -> Optional[Path]:
+        """Stop recording and cleanly release resources."""
+        if not self.is_recording:
+            return None
+
+        self.is_recording = False
+        saved_path = self.output_path
+
+        if self.writer is not None:
+            self.writer.release()
+            self.writer = None
+
+        if self.meta_file is not None:
+            self.meta_file.flush()
+            self.meta_file.close()
+            self.meta_file = None
+
+        elapsed = max(0.001, time.time() - self.start_time)
+        actual_fps = self.frame_count / elapsed
+        logger.info(
+            "Preview recording saved: %s (%d frames, %.1fs @ %.1f FPS)",
+            saved_path, self.frame_count, elapsed, actual_fps
+        )
+        return saved_path
+
+    @property
+    def elapsed_s(self) -> float:
+        if not self.is_recording:
+            return 0.0
+        return time.time() - self.start_time
+
+    @property
+    def status_str(self) -> str:
+        if not self.is_recording:
+            return ""
+        secs = int(self.elapsed_s)
+        mins = secs // 60
+        secs = secs % 60
+        return f"{mins:02d}:{secs:02d} ({self.frame_count}f)"
+
+
 def draw_preview_overlay(
     full_frame: Optional[np.ndarray],
     extractor: Optional[FeatureExtractor] = None,
@@ -33,6 +169,8 @@ def draw_preview_overlay(
     fps: float = 0.0,
     driver_name: str = "bettercam",
     status_text: Optional[str] = None,
+    recorder: Optional[PreviewVideoRecorder] = None,
+    auto_locate: bool = False,
 ) -> np.ndarray:
     """Render a rich real-time visual telemetry overlay onto the captured screen frame.
 
@@ -44,6 +182,8 @@ def draw_preview_overlay(
         fps: Current capture/processing framerate.
         driver_name: Capture backend name (e.g. 'bettercam', 'gdi', 'mock').
         status_text: Optional override status string for HUD footer.
+        recorder: Optional PreviewVideoRecorder instance to render recording indicator.
+        auto_locate: Whether to dynamically locate widget if current_roi is None.
 
     Returns:
         Annotated BGR image scaled to 960x540 for live display.
@@ -85,9 +225,28 @@ def draw_preview_overlay(
         cv2.LINE_AA,
     )
 
+    # 1b. Recording Badge if active
+    if recorder is not None and recorder.is_recording:
+        rec_str = f"REC {recorder.status_str}"
+        blink = (int(time.time() * 2) % 2) == 0
+        dot_color = (0, 0, 255) if blink else (0, 0, 140)
+        rec_x = display_w - 220
+        cv2.circle(display, (rec_x, 18), 6, dot_color, -1)
+        cv2.circle(display, (rec_x, 18), 7, (255, 255, 255), 1)
+        cv2.putText(
+            display,
+            rec_str,
+            (rec_x + 12, 23),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (0, 50, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
     # 2. BobberBar widget localization
     bbox = current_roi
-    if bbox is None and extractor is not None:
+    if bbox is None and auto_locate and extractor is not None:
         bbox = extractor.track_detector.locate_widget(full_frame)
 
     if bbox is not None:
@@ -218,12 +377,13 @@ def draw_preview_overlay(
         )
 
     # Controls footer
+    rec_ctl = "[R] Stop Rec" if (recorder is not None and recorder.is_recording) else "[R] Record"
     cv2.putText(
         display,
-        "Controls: [Q/ESC] Quit  |  [S] Save Snapshot",
-        (display_w - 330, display_h - 12),
+        f"Controls: [Q/ESC] Quit  |  {rec_ctl}  |  [S] Snapshot",
+        (display_w - 410, display_h - 12),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.40,
+        0.38,
         (180, 180, 180),
         1,
         cv2.LINE_AA,
@@ -232,14 +392,20 @@ def draw_preview_overlay(
     return display
 
 
-def run_preview(driver_name: str = "bettercam", dynamic_roi: bool = True) -> None:
-    """Run real-time capture and extraction preview loop."""
+def run_preview(
+    driver_name: str = "bettercam",
+    dynamic_roi: bool = True,
+    record_video: bool = False,
+    output_video_path: Optional[str] = None,
+) -> None:
+    """Run real-time capture and extraction preview loop with optional MP4 recording."""
     print("=" * 65)
     print("FISHER AI — LIVE CAPTURE & EXTRACTION PREVIEW")
     print("=" * 65)
     print("Connecting to Screen 3 (Stardew Valley)...")
     print("Controls: Press 'Q' or ESC in preview window to exit.")
-    print("          Press 'S' to save a snapshot.")
+    print("          Press 'R' to toggle video recording.")
+    print("          Press 'S' to save a snapshot image.")
     print("-" * 65)
 
     cfg = load_config()
@@ -260,6 +426,11 @@ def run_preview(driver_name: str = "bettercam", dynamic_roi: bool = True) -> Non
     )
     extractor = FeatureExtractor(bounds=bounds)
 
+    recorder = PreviewVideoRecorder()
+    if record_video:
+        recorder.start(output_video_path)
+        print(f"[RECORDER] Automatically recording preview to: {recorder.output_path}")
+
     window_name = "Fisher AI — Live Capture Preview (Screen 3)"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 960, 540)
@@ -268,6 +439,10 @@ def run_preview(driver_name: str = "bettercam", dynamic_roi: bool = True) -> Non
     start_time = time.time()
     fps = 0.0
     current_roi = None
+    roi_lost_count = 0
+    consecutive_detect = 0
+    MAX_ROI_LOST_FRAMES = 8  # ~250ms sustained loss before dropping ROI
+
     static_roi = None
     if "roi" in cfg.capture:
         r = cfg.capture["roi"]
@@ -287,32 +462,97 @@ def run_preview(driver_name: str = "bettercam", dynamic_roi: bool = True) -> Non
                 frame_count = 0
                 start_time = now
 
-            # If frame is full 1080p, verify static ROI first, then dynamic locate_widget
-            if frame.shape[1] > 600 or frame.shape[0] > 800:
-                if static_roi is not None:
+            # BobberBar ROI detection & temporal tracking
+            extraction = None
+            is_full_frame = (frame.shape[1] > 600 or frame.shape[0] > 800)
+
+            if not is_full_frame:
+                # Pre-cropped frame (e.g. synthetic test or camera directly on ROI)
+                current_roi = None
+                extraction = extractor.extract_features(frame, ts)
+            elif current_roi is not None:
+                # 1. Continuous Tracking Phase: Minigame ROI already locked
+                rx0, ry0, rx1, ry1 = current_roi
+                sub_frame = frame[ry0:ry1, rx0:rx1]
+                if sub_frame.size > 0:
+                    extraction = extractor.extract_features(sub_frame, ts)
+                    if extraction.is_active:
+                        roi_lost_count = 0
+                    else:
+                        roi_lost_count += 1
+                        if roi_lost_count >= MAX_ROI_LOST_FRAMES:
+                            # Minigame concluded
+                            current_roi = None
+                            roi_lost_count = 0
+                            consecutive_detect = 0
+                            extraction = None
+                            extractor.reset()
+            else:
+                # 2. Searching Phase: Look for BobberBar appearing on screen
+                detected_cand = None
+                if dynamic_roi:
+                    detected_cand = extractor.track_detector.locate_widget(frame)
+
+                if detected_cand is None and static_roi is not None:
                     sx0, sy0, sx1, sy1 = static_roi
                     sub = frame[sy0:sy1, sx0:sx1]
                     act, conf = extractor.track_detector.detect_track(sub)
-                    if act and conf >= 0.70:
-                        current_roi = static_roi
-                    else:
-                        current_roi = extractor.track_detector.locate_widget(frame)
+                    has_fill = extractor.progress_tracker.has_progress_fill(sub, min_progress=0.04)
+                    if act and conf >= 0.70 and has_fill:
+                        detected_cand = static_roi
+
+                if detected_cand is not None:
+                    consecutive_detect += 1
+                    if consecutive_detect >= 2:
+                        current_roi = detected_cand
+                        consecutive_detect = 0
+                        roi_lost_count = 0
+                        rx0, ry0, rx1, ry1 = current_roi
+                        sub_frame = frame[ry0:ry1, rx0:rx1]
+                        if sub_frame.size > 0:
+                            extraction = extractor.extract_features(sub_frame, ts)
                 else:
-                    current_roi = extractor.track_detector.locate_widget(frame)
+                    consecutive_detect = 0
 
             preview_img = draw_preview_overlay(
                 full_frame=frame,
                 extractor=extractor,
+                extraction=extraction,
                 current_roi=current_roi,
                 fps=fps,
                 driver_name=driver_name,
+                recorder=recorder,
             )
+
+            # Record frame if recording is active
+            if recorder.is_recording:
+                metadata = {
+                    "roi": list(current_roi) if current_roi else None,
+                    "fps": round(fps, 1),
+                }
+                if extraction is not None:
+                    metadata.update({
+                        "bar_pos": round(float(extraction.bar_pos), 4),
+                        "fish_pos": round(float(extraction.fish_pos), 4),
+                        "progress": round(float(extraction.progress), 4),
+                        "in_bar": bool(extraction.in_bar),
+                        "is_active": bool(extraction.is_active),
+                        "confidence": round(float(extraction.confidence), 4),
+                    })
+                recorder.write_frame(preview_img, metadata=metadata)
 
             cv2.imshow(window_name, preview_img)
 
             key = cv2.waitKey(1) & 0xFF
             if key in (ord("q"), ord("Q"), 27):  # 'Q' or ESC
                 break
+            elif key in (ord("r"), ord("R")):
+                if recorder.is_recording:
+                    saved = recorder.stop()
+                    print(f"\n[RECORDER] Stopped recording: {saved}")
+                else:
+                    started = recorder.start(output_video_path)
+                    print(f"\n[RECORDER] Started recording to: {started}")
             elif key in (ord("s"), ord("S")):
                 repo_root = Path(__file__).resolve().parent.parent.parent
                 out_path = repo_root / "reports" / "preview_snapshot.png"
@@ -325,6 +565,9 @@ def run_preview(driver_name: str = "bettercam", dynamic_roi: bool = True) -> Non
     except KeyboardInterrupt:
         print("\nPreview stopped by user.")
     finally:
+        if recorder.is_recording:
+            saved = recorder.stop()
+            print(f"[RECORDER] Video finalized and saved: {saved}")
         cap.stop()
         cv2.destroyAllWindows()
         print("Preview closed cleanly.")

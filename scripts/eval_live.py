@@ -61,6 +61,8 @@ def run_live_evaluation(
     require_foreground: bool = False,
     wait_timeout: float = 90.0,
     preview: bool = False,
+    record_video: bool = False,
+    output_video_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute live evaluation suite and return aggregated metrics."""
     console = Console()
@@ -157,6 +159,15 @@ def run_live_evaluation(
 
     # 4. Instantiate environment
     cfg = load_config()
+    recorder = None
+    if record_video or output_video_path:
+        from fisher.ui.preview import PreviewVideoRecorder
+        recorder = PreviewVideoRecorder()
+        rec_path = recorder.start(output_video_path)
+        console.print(f"[cyan]Preview video recording active:[/cyan] [bold green]{rec_path}[/bold green]")
+
+    render_mode = "human" if preview else ("rgb_array" if recorder is not None else None)
+
     env = None
     if mock_mode:
         console.print("[bold green][INFO] Running in Mock Hardware Mode (headless CI simulation)[/bold green]")
@@ -171,7 +182,8 @@ def run_live_evaluation(
             auto_start_capture=True,
             wait_for_ui_on_reset=False,
             require_foreground=False,
-            render_mode="human" if preview else None,
+            render_mode=render_mode,
+            video_recorder=recorder,
         )
     else:
         env = LiveFishingEnv(
@@ -180,7 +192,8 @@ def run_live_evaluation(
             wait_for_ui_on_reset=True,
             require_foreground=require_foreground,
             foreground_lost_threshold_frames=90,
-            render_mode="human" if preview else None,
+            render_mode=render_mode,
+            video_recorder=recorder,
         )
 
     console.print(f"[cyan]Target Episodes:[/cyan] {episodes}")
@@ -335,6 +348,9 @@ def run_live_evaluation(
 
     finally:
         env.close()
+        if recorder is not None and recorder.is_recording:
+            saved_vid = recorder.stop()
+            console.print(f"\n[bold green][RECORDER] Preview video saved to:[/bold green] {saved_vid}")
 
     # 5. Summarize and render aggregate report
     total_eps = len(episode_results)
@@ -435,7 +451,11 @@ def main() -> None:
     parser.add_argument("--output-dir", type=str, default="reports/live_eval", help="Telemetry output directory")
     parser.add_argument("--killswitch", type=str, default="f9", help="Global killswitch key (default: f9)")
     parser.add_argument("--preview", action="store_true", help="Display live visual preview window with BobberBar tracking overlay")
+    parser.add_argument("--record-video", type=str, nargs="?", const="", default=None, help="Record live preview feed to an MP4 video")
     args = parser.parse_args()
+
+    rec_vid = args.record_video is not None
+    vid_path = args.record_video if (args.record_video and args.record_video != "") else None
 
     run_live_evaluation(
         episodes=args.episodes,
@@ -446,6 +466,8 @@ def main() -> None:
         output_dir=args.output_dir,
         killswitch_key=args.killswitch,
         preview=args.preview,
+        record_video=rec_vid,
+        output_video_path=vid_path,
     )
 
 

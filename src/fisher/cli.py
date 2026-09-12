@@ -305,9 +305,26 @@ def main() -> None:
         action="store_true",
         help="Display real-time visual preview of Screen 3 capture and BobberBar detection (standalone or with --eval-live)",
     )
+    parser.add_argument(
+        "--record-video",
+        type=str,
+        nargs="?",
+        const="",
+        default=None,
+        help="Record real-time preview display (with bounding boxes and metrics HUD) to an MP4 video file",
+    )
+    parser.add_argument(
+        "--analyze-video",
+        type=str,
+        default=None,
+        help="Analyze recorded preview MP4 video for minigame detection errors, false positives, and tracking stability",
+    )
 
     args = parser.parse_args()
     console = Console()
+
+    rec_vid = args.record_video is not None
+    vid_path = args.record_video if (args.record_video and args.record_video != "") else None
 
     if args.check_monitors:
         cmd_check_monitors(console)
@@ -349,16 +366,21 @@ def main() -> None:
             require_foreground=require_fg,
             wait_timeout=args.wait_timeout,
             preview=args.preview,
+            record_video=rec_vid,
+            output_video_path=vid_path,
         )
     elif args.preview:
         from fisher.ui.preview import run_preview
-        run_preview()
+        run_preview(record_video=rec_vid, output_video_path=vid_path)
+    elif args.analyze_video:
+        from scripts.analyze_preview_video import analyze_video
+        analyze_video(args.analyze_video)
     else:
         config = load_config()
         console.print(
             f"[bold white]Fisher v0.1.0[/bold white] — Loaded configuration from {config.game.get('window_title')}"
         )
-        console.print("Run with --help to see available commands, or --eval-live / --preview / --calibrate / --train-sim.")
+        console.print("Run with --help to see available commands, or --preview --record-video / --eval-live / --analyze-video.")
 
 
 if __name__ == "__main__":

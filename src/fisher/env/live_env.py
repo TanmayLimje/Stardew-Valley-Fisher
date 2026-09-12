@@ -51,9 +51,11 @@ class LiveFishingEnv(gym.Env):
         require_foreground: bool = True,
         foreground_lost_threshold_frames: int = 15,
         render_mode: Optional[str] = None,
+        video_recorder: Optional[Any] = None,
     ) -> None:
         super().__init__()
         self.cfg = config or load_config()
+        self.video_recorder = video_recorder
         self.control_hz = int(self.cfg.control.get("hz", control_hz))
         self.period_s = 1.0 / self.control_hz
         self.max_duration_s = max_duration_s
@@ -475,16 +477,35 @@ class LiveFishingEnv(gym.Env):
                 fps=float(self.control_hz),
                 driver_name=cap_name,
                 status_text=status_text,
+                recorder=self.video_recorder,
             )
+
+            # Record frame if recorder is present and recording
+            if self.video_recorder is not None and getattr(self.video_recorder, "is_recording", False):
+                meta = {
+                    "step": self.step_count,
+                    "roi": list(self.current_roi) if self.current_roi else None,
+                    "progress": float(self.progress),
+                    "bar_pos": float(self._last_extraction.bar_pos) if self._last_extraction else 0.0,
+                    "fish_pos": float(self._last_extraction.fish_pos) if self._last_extraction else 0.0,
+                    "in_bar": bool(self._last_extraction.in_bar) if self._last_extraction else False,
+                    "confidence": float(self._last_extraction.confidence) if self._last_extraction else 0.0,
+                }
+                self.video_recorder.write_frame(display, metadata=meta)
 
             if self.render_mode == "human":
                 import cv2
-                if not self._window_initialized:
-                    cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
-                    cv2.resizeWindow(self._window_name, 960, 540)
-                    self._window_initialized = True
-                cv2.imshow(self._window_name, display)
-                cv2.waitKey(1)
+                try:
+                    if not self._window_initialized:
+                        cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
+                        cv2.resizeWindow(self._window_name, 960, 540)
+                        self._window_initialized = True
+                    cv2.imshow(self._window_name, display)
+                    key = cv2.waitKey(1) & 0xFF
+                    if key in (ord("q"), ord("Q"), 27):
+                        logger.info("User requested preview window exit (q/ESC).")
+                except Exception as exc:
+                    logger.debug("Live preview display exception: %s", exc)
 
             return display
 
@@ -509,9 +530,12 @@ class LiveFishingEnv(gym.Env):
         if self.capture.is_running:
             self.capture.stop()
         self.timer.close()
+        if self.video_recorder is not None and getattr(self.video_recorder, "is_recording", False):
+            self.video_recorder.stop()
         if self.render_mode == "human" and self._window_initialized:
             try:
                 import cv2
                 cv2.destroyWindow(self._window_name)
             except Exception:
                 pass
+            self._window_initialized = False

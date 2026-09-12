@@ -577,10 +577,136 @@ def test_live_env_dynamic_roi_posing_frame():
         # Dynamically located on right half of Screen 3
         rx0, ry0, rx1, ry1 = env.current_roi
         assert 1000 <= rx0 <= 1100
-        assert 150 <= ry0 <= 200
+        assert 150 <= ry0 <= 200  # widget top; actual computed value is 177 (full 650px widget enclosing bottom)
         assert 0.05 <= info["bar_pos"] <= 0.30
     finally:
         env.close()
 
+
+def test_locate_widget_at_low_progress_anchors_to_bottom():
+    """
+    Regression test: at minigame START (p=0.30, bar at bottom), locate_widget() must return an
+    ROI whose bottom edge fully encloses the track.
+
+    Root cause of bug: max(chunks, key=len) selected a chunk near the TOP of the sparse red fill,
+    shifting the computed ROI upward by ~400 px and cutting the bobber bar paddle out of the crop.
+
+    Fix: Use bottommost_chunk (reversed iteration) so the anchor is always near the physical
+    bottom of the progress column, regardless of fill level.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    from fixtures.synthetic_generator import SyntheticFrameGenerator, SyntheticMinigameState
+
+    from fisher.extraction.track import TrackDetector
+    from fisher.extraction.types import TrackBounds
+
+    # Use the calibrated left-bank track bounds (river, facing right)
+    bounds = TrackBounds(x0=76, y0=47, x1=112, y1=615, height_px=568)
+    detector = TrackDetector(default_bounds=bounds)
+
+    # Generate a 1920x1080 frame with the minigame widget at the calibrated ROI position
+    # (x=720, y=150) using the real synthetic generator.
+    # We embed the ROI manually at the correct position.
+    gen = SyntheticFrameGenerator(roi_width=190, roi_height=650, track_bounds=bounds)
+    state = SyntheticMinigameState(
+        bar_pos=0.085,       # bar at bottom (minigame start)
+        bar_half_height=0.0845,
+        fish_pos=0.10,
+        progress=0.30,       # LOW progress — the trigger for the old bug
+        is_active=True,
+    )
+    roi_frame, _ = gen.generate_roi_frame(state)
+
+    # Embed into a full 1920x1080 frame at the calibrated position
+    full_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    widget_x0, widget_y0 = 720, 150
+    widget_x1 = widget_x0 + roi_frame.shape[1]
+    widget_y1 = widget_y0 + roi_frame.shape[0]
+    full_frame[widget_y0:widget_y1, widget_x0:widget_x1] = roi_frame
+
+    # Locate widget on the full 1080p frame
+    bbox = detector.locate_widget(full_frame)
+
+    assert bbox is not None, (
+        "locate_widget() returned None on a low-progress (p=0.30) frame — "
+        "detection failed completely."
+    )
+
+    rx0, ry0, rx1, ry1 = bbox
+    roi_height = ry1 - ry0
+    expected_bottom = widget_y0 + roi_frame.shape[0]  # y=800
+
+    # The ROI must be tall enough to contain the full track (>= 580 px)
+    assert roi_height >= 580, (
+        f"ROI height {roi_height} px is too small — track is being cut. "
+        f"The ROI must be >= 580 px tall to contain the full bobber bar track."
+    )
+
+    # The ROI bottom must be within ±50 px of the widget bottom
+    # (before the fix, ry1 was ~400 px too high, missing the bar entirely)
+    assert abs(ry1 - expected_bottom) <= 50, (
+        f"ROI bottom {ry1} is {ry1 - expected_bottom:+d} px from expected bottom {expected_bottom}. "
+        f"The ROI geometry is still shifted (bottommost_chunk anchor regression)."
+    )
+
+    # The ROI left edge must be close to the widget left edge
+    assert abs(rx0 - widget_x0) <= 20, (
+        f"ROI x0={rx0} deviates too far from widget x0={widget_x0}."
+    )
+
+
+def test_preview_video_recorder_and_analysis(tmp_path):
+    """Verify PreviewVideoRecorder writes valid MP4 video and analyze_video generates diagnostics."""
+    import json
+    from fisher.ui.preview import PreviewVideoRecorder, draw_preview_overlay
+    from scripts.analyze_preview_video import analyze_video
+
+    test_vid_path = tmp_path / "test_recording.mp4"
+    recorder = PreviewVideoRecorder(fps=30.0, frame_size=(960, 540))
+    rec_out = recorder.start(test_vid_path)
+    assert recorder.is_recording
+    assert Path(rec_out).name == "test_recording.mp4"
+
+    # Write 30 test frames (1.0s video) with simulated telemetry
+    for i in range(30):
+        frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        frame[200:400, 500:700] = [100, 200, 50]
+        preview_img = draw_preview_overlay(
+            full_frame=frame,
+            fps=30.0,
+            status_text="TEST RECORDING",
+            recorder=recorder,
+        )
+        meta = {
+            "roi": [720, 150, 910, 800] if i >= 10 else None,
+            "confidence": 0.95 if i >= 10 else 0.05,
+            "bar_pos": 0.5,
+            "fish_pos": 0.5,
+            "progress": 0.35 + (i * 0.01),
+            "in_bar": True if i >= 10 else False,
+        }
+        recorder.write_frame(preview_img, metadata=meta)
+
+    assert recorder.frame_count == 30
+    saved = recorder.stop()
+    assert not recorder.is_recording
+    assert saved is not None and Path(saved).exists()
+    assert Path(saved).stat().st_size > 0
+
+    # Verify JSONL metadata file exists
+    meta_path = Path(saved).with_suffix(".jsonl")
+    assert meta_path.exists()
+    with open(meta_path, "r", encoding="utf-8") as f:
+        lines = [json.loads(line) for line in f if line.strip()]
+    assert len(lines) == 30
+    assert lines[15]["roi"] == [720, 150, 910, 800]
+
+    # Run analyze_video on the test recording
+    analysis_dir = tmp_path / "analysis_output"
+    summary = analyze_video(str(saved), output_dir=str(analysis_dir))
+    assert summary["total_frames"] == 30
+    assert summary["episodes_found"] >= 1
+    assert (analysis_dir / "analysis_report.json").exists()
 
 
