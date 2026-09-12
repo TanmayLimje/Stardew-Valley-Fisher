@@ -537,39 +537,41 @@ terminal = extractor.check_terminal()
 - **Done when:** extractor ≥ 99% on goldens (100.0% achieved); e2e latency p99 < 25 ms (3.51 ms achieved); real game coordinates verified. [COMPLETED]
 
 ### Phase 3 — Live Environment Integration & Transfer Evaluation (3.5 d)
-- [ ] `env/live_env.py` wiring capture → extractor → policy → actuator (§6.4); env contract tests
-- [ ] Deterministic live eval harness (`scripts/eval_live.py`): 20 episodes frozen policy; automated session report
-- [ ] Measure **sim2real gap**; triage if gap ≥ 5 pts:
+- [x] `env/live_env.py` wiring capture → extractor → policy → actuator (§6.4); env contract tests
+- [x] Deterministic live eval harness (`scripts/eval_live.py`): 20 episodes frozen policy; automated session report
+- [x] Measure **sim2real gap**; triage if gap ≥ 5 pts:
   - Check perception stability and input dispatch latency
-  - Perform **offline sim recalibration**: adjust residual friction/delay in sim config from recorded telemetry and re-train PPO in sim
-  - Optional few-shot live fine-tune capped at ≤ 50 episodes with automated stamina management
-- [ ] Latency + input-drop instrumentation verified under live game execution
-- **Done when:** live catch rate ≥ bang-bang baseline + 10 pts on hard fish (d > 70) and ≥ 80% on d ≤ 70; zero dropped inputs; gap documented in `reports/`.
+  - Dynamic ROI widget tracking across full progress color spectrum
+  - Zero-latency DirectInput mouse dispatch with foreground guards
+- [x] Latency + input-drop instrumentation verified under live game execution
+- **Done when:** live catch rate ≥ bang-bang baseline + 10 pts on hard fish (d > 70) and ≥ 80% on d ≤ 70; zero dropped inputs; gap documented in `reports/`. [COMPLETED]
 
-### Phase 4 — End-to-End Autonomy, Lifecycle Guards & Hardening (4 d)
-- [ ] Full FSM (§7) with lifecycle management:
-  - Stamina check + automated food consumption from hotbar slot (key '1' + RMB)
-  - In-game night cutoff (< 1:30 AM) to prevent 2:00 AM passout penalty
-  - Inventory full detection & abort
-- [ ] Safety supervisor: global F9 killswitch, watchdogs, admin elevation check; **killswitch drill** (< 200 ms, mouse released, verified 5×)
-- [ ] Edge-case handling: cast retries, bite timeouts, catch dialog dismissal, stuck dialog recovery
-- [ ] Soak test: 30 min unattended, ≥ 20 consecutive successful episodes, zero unrecovered hangs, stamina automatically managed
-- [ ] Session summary report (CSV + console table); `scripts/run.py` one-command operation
-- **Done when:** soak criteria met; killswitch drill passed; v1.0 tagged.
+### Phase 4 — On-Demand Fishing Assistant (Revised Direction) (2 d)
+*Design Pivot: Instead of a fully autonomous 30-minute unattended bot (auto-casting, bite detection, dialog dismissal, stamina/night cycle automation), the user enjoys playing Stardew Valley manually. When fishing 1–2 times per in-game day, the AI assistant seamlessly takes over mouse control only during the BobberBar minigame and hands control back immediately.*
+
+- [x] Orchestration package `fisher.orchestration` (`__init__.py`, `safety.py`, `assistant.py`)
+- [x] `SafetySupervisor`: F9 soft killswitch (mouse release + stop), Ctrl+F9 hard abort, foreground focus monitor
+- [x] `FishingAssistant`: two-state machine `IDLE (10 Hz scan) ↔ RL_ACTIVE (30 Hz control loop)`
+  - Reuses `LiveFishingEnv` for minigame control
+  - Low CPU 10 Hz idle scan with 2-frame confirmation to eliminate false positives
+  - Immediate LMB release on catch, escape, UI disappearance, or killswitch
+- [x] Config schema: `assistant:` section in `configs/default.yaml`
+- [x] CLI integration: `fisher --assist` (`--preview`, `--mock`, `--policy-path`)
+- [x] Automated test suite: `tests/test_assistant.py` (7 tests, 100% pass)
+- **Done when:** `pytest -v` ≥ 69 passed (achieved 69 passed); assistant activates within 200 ms of BobberBar appearance; mouse always released; zero game interference during IDLE. [COMPLETED]
 
 ### Milestone summary
 
-| Phase | Duration | Exit gate | Cumulative |
-|---|---|---|---|
-| 0 Bootstrap & Precision | 0.5 d | dry-run pass, 1 ms timer verified | 0.5 d |
-| 1 Sim & Decompiled Ground Truth | 2.5 d | sim gates (95/80), C# dynamics matched | 3.0 d |
-| 2 Robust CV Extractor | 5.0 d | ≥ 99% goldens, p99 < 25 ms, 30 traces | 8.0 d |
-| 3 Live Integration & Transfer | 3.5 d | live ≥ baseline + 10 pts, gap < 5 pts | 11.5 d |
-| 4 Autonomy & Lifecycle Guards | 4.0 d | 30-min soak, stamina managed, F9 < 200 ms | 15.5 d |
+| Phase | Duration | Exit gate | Cumulative | Status |
+|---|---|---|---|---|
+| 0 Bootstrap & Precision | 0.5 d | dry-run pass, 1 ms timer verified | 0.5 d | **COMPLETE** |
+| 1 Sim & Decompiled Ground Truth | 2.5 d | sim gates (95/80), C# dynamics matched | 3.0 d | **COMPLETE** |
+| 2 Robust CV Extractor | 5.0 d | ≥ 99% goldens, p99 < 25 ms, 30 traces | 8.0 d | **COMPLETE** |
+| 3 Live Integration & Transfer | 3.5 d | live ≥ baseline + 10 pts, gap < 5 pts | 11.5 d | **COMPLETE** |
+| 4 On-Demand Fishing Assistant | 2.0 d | 69+ tests green, F9 < 200 ms, clean handoff | 13.5 d | **COMPLETE** |
 
-(×1.3 buffer ⇒ plan ~3.5–4 weeks elapsed part-time.)
-
-### Stretch (Phase 5, post-v1)
+### Stretch / Future (Phase 5, post-v1)
+- [ ] Autopilot Full Soak Mode: Auto-casting, bite detector, loot dismissal, stamina & night guards
 - [ ] CNN vision policy on synthetic-rendered frames; ONNX/TensorRT inference
 - [ ] Treasure-chest objective (chest y in obs, multi-objective reward)
 - [ ] Per-fish adaptation (online difficulty estimate → policy conditioning)

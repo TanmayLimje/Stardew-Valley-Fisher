@@ -314,6 +314,16 @@ def main() -> None:
         help="Record real-time preview display (with bounding boxes and metrics HUD) to an MP4 video file",
     )
     parser.add_argument(
+        "--assist",
+        action="store_true",
+        help="Start the on-demand fishing assistant (watches for minigame, AI takes control automatically)",
+    )
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use mock drivers (headless, no live game required)",
+    )
+    parser.add_argument(
         "--analyze-video",
         type=str,
         default=None,
@@ -369,6 +379,16 @@ def main() -> None:
             record_video=rec_vid,
             output_video_path=vid_path,
         )
+    elif args.assist:
+        from fisher.orchestration.assistant import FishingAssistant
+        config = load_config()
+        assistant = FishingAssistant.from_config(
+            config=config,
+            policy_path=args.policy_path,
+            preview=args.preview,
+            mock_mode=getattr(args, 'mock', False),
+        )
+        assistant.run()
     elif args.preview:
         from fisher.ui.preview import run_preview
         run_preview(record_video=rec_vid, output_video_path=vid_path)
@@ -380,7 +400,7 @@ def main() -> None:
         console.print(
             f"[bold white]Fisher v0.1.0[/bold white] — Loaded configuration from {config.game.get('window_title')}"
         )
-        console.print("Run with --help to see available commands, or --preview --record-video / --eval-live / --analyze-video.")
+        console.print("Run with --help to see available commands, or --assist / --eval-live / --preview.")
 
 
 if __name__ == "__main__":

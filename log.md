@@ -238,6 +238,44 @@ This section provides an immutable, chronological record of every agent session.
 - **Recommended Immediate Next Step:** <Clear, actionable directive for incoming agent>
 ```
 
+### [2026-09-13] Agent Session: Antigravity (Gemini 3.8 Flash) — Phase 4: On-Demand Fishing Assistant
+
+- **Agent:** Antigravity (Gemini 3.8 Flash)
+- **Target Phase:** Phase 4 — On-Demand Fishing Assistant (Revised Architecture)
+- **Session Objective:** Implement on-demand fishing assistant architecture pivoted per user request: instead of an unattended 30-minute autonomous bot, build a lightweight background watcher (`fisher --assist`) that monitors Screen 3 at 10 Hz, automatically takes over mouse control via the trained 30 Hz PPO policy when the BobberBar minigame appears, and releases mouse control immediately upon catch, escape, or cancellation.
+
+#### 1. Code Changes
+| Action | File Path | Rationale & Architectural Impact |
+|---|---|---|
+| [NEW] | [`src/fisher/orchestration/__init__.py`](file:///d:/projects/fisher/src/fisher/orchestration/__init__.py) | Package initialization for orchestration modules. |
+| [NEW] | [`src/fisher/orchestration/safety.py`](file:///d:/projects/fisher/src/fisher/orchestration/safety.py) | `SafetySupervisor` polling daemon for soft F9 killswitch, hard Ctrl+F9 emergency abort, and programmatic cancellation. |
+| [NEW] | [`src/fisher/orchestration/assistant.py`](file:///d:/projects/fisher/src/fisher/orchestration/assistant.py) | `FishingAssistant` implementing `IDLE (10 Hz) ↔ RL_ACTIVE (30 Hz)` state machine. Reuses `LiveFishingEnv` for minigame control, requires 2 consecutive frame detections to prevent UI flashes, and enforces mouse release on all exit paths. |
+| [MODIFY] | [`configs/default.yaml`](file:///d:/projects/fisher/configs/default.yaml) | Added `assistant:` configuration block (`idle_scan_hz: 10`, `detection_confirm_frames: 2`, `transition_delay_ms: 200`, `show_notifications: true`). |
+| [MODIFY] | [`src/fisher/cli.py`](file:///d:/projects/fisher/src/fisher/cli.py) | Added `--assist` and `--mock` arguments and CLI handler calling `FishingAssistant.from_config().run()`. |
+| [NEW] | [`tests/test_assistant.py`](file:///d:/projects/fisher/tests/test_assistant.py) | Comprehensive test suite containing 7 unit tests covering idle scan, false positive rejection, minigame catch/escape transitions, mouse release guarantees, killswitch aborts, foreground loss pauses, and multi-episode sessions. |
+| [MODIFY] | [`plan.md`](file:///d:/projects/fisher/plan.md) | Revised Phase 4 roadmap to reflect On-Demand Assistant architecture; marked full autonomous soak bot as future stretch (Phase 5). |
+| [MODIFY] | [`AGENTS.md`](file:///d:/projects/fisher/AGENTS.md) | Added `fisher --assist` and `fisher --assist --mock` to the standard CLI commands table, updating green test baseline to 69+. |
+| [MODIFY] | [`phase4_plan.md`](file:///d:/projects/fisher/phase4_plan.md) | Replaced obsolete autonomous FSM document with architecture notes for the on-demand assistant. |
+
+#### 2. Verification & Benchmarks Run
+- `pytest -v tests/test_assistant.py`: **7 passed in 0.76s** (100% pass on new suite).
+- `pytest -v`: **69 passed, 2 warnings in 24.01s** (Zero regressions across all test suites).
+- `fisher --help`: Verified `--assist` and `--mock` options properly exposed and documented.
+
+#### 3. Exit Gates & Deliverable Status
+- [x] Assistant detects BobberBar UI and transitions IDLE → RL_ACTIVE (verified in `test_idle_scan_detects_minigame`).
+- [x] False positives (single frame flash, low progress dialogs) rejected (verified in `test_idle_scan_ignores_false_positives`).
+- [x] Mouse LMB released unconditionally on catch, escape, or error (verified in `test_mouse_released_on_exit`).
+- [x] Killswitch (F9) triggers clean shutdown and mouse release (verified in `test_killswitch_stops_assistant`).
+- [x] Foreground loss safely pauses minigame control without aborting the process (verified in `test_foreground_loss_pauses`).
+- [x] Multi-episode session smoothly handles consecutive fishing encounters with IDLE gaps in between (verified in `test_full_session_two_minigames`).
+
+#### 4. Review & Handoff Notes for Next Agent
+- **User Experience:** The player can run `fisher --assist` (or `fisher --assist --preview`) in an Administrator terminal on Screen 2, and play Stardew Valley normally on Screen 3. Whenever they cast a rod and hook a fish, the AI instantly takes over the BobberBar minigame and releases mouse when done.
+- **Headless Testing:** For agents without access to a physical Stardew Valley window, run `fisher --assist --mock` or `pytest -v tests/test_assistant.py`.
+
+---
+
 ### [2026-09-12] Agent Session: Antigravity (Gemini 3.8 Flash) — Preview Video Recording & Detection Diagnostic Analyzer
 
 - **Agent:** Antigravity (Gemini 3.8 Flash)

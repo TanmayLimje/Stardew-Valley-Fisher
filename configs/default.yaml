@@ -66,6 +66,12 @@ sim:
   randomization: true
   curriculum: ["A", "B", "C"]
 
+assistant:
+  idle_scan_hz: 10             # Frame scan rate while watching for minigame (low CPU)
+  detection_confirm_frames: 2  # Consecutive detections before activating PPO
+  transition_delay_ms: 200     # Pause before taking control (lets UI settle)
+  show_notifications: true     # Rich console status updates
+
 lifecycle:
   food_hotbar_slot: 1        # hotbar key for food consumption (e.g. '1' for salad/cheese)
   stamina_threshold_pct: 15  # consume food when stamina drops below 15%

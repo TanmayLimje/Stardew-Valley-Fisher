@@ -132,7 +132,9 @@ All agents can run the following CLI commands from the project root:
 
 | Command | Purpose | Expected Benchmark / Status |
 |---|---|---|
-| `pytest -v` | Complete automated unit test suite. | **26+ passed**, zero regressions. |
+| `pytest -v` | Complete automated unit test suite. | **69+ passed**, zero regressions. |
+| `fisher --assist` | On-demand background fishing assistant (auto-detects BobberBar, AI takes over, releases control on finish). | 10 Hz idle scan, 30 Hz PPO takeover, F9 killswitch. |
+| `fisher --assist --mock` | Headless assistant dry-run with mock drivers. | Clean IDLE ↔ RL_ACTIVE cycle verification. |
 | `fisher --check-monitors` | Validate 3-screen display enumeration and game window binding. | Shows `DISPLAY1`, `DISPLAY5`, `DISPLAY6`. |
 | `fisher --jitter-test` | Windows 1 ms timer scheduler benchmark (300 ticks). | **p50 $< 0.05\text{ ms}$, p99 $< 0.5\text{ ms}$**. |
 | `fisher --dry-run` | End-to-end 300-tick mock pipeline simulation. | 300 ticks, 0 dropped frames, latency $< 1\text{ ms}$. |
