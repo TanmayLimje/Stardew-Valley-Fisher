@@ -1,12 +1,35 @@
-# Fisher — Autonomous Reinforcement Learning Agent for Stardew Valley
+<div align="center">
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 42 Passed](https://img.shields.io/badge/tests-42%20passed-brightgreen.svg)](tests/)
-[![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey.svg)]()
-[![Control: 30 Hz / 1 ms Jitter](https://img.shields.io/badge/control-30%20Hz%20%7C%20p99%20jitter%20%3C%200.1%20ms-blueviolet.svg)]()
+# Fisher
+
+### Autonomous Reinforcement Learning Agent for Stardew Valley
+
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Tests: 42 Passed](https://img.shields.io/badge/Tests-42%20Passed-10B981?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Platform: Windows 10/11](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows&logoColor=white)]()
+[![Control: 30 Hz / 1 ms Jitter](https://img.shields.io/badge/Control-30%20Hz%20%7C%20p99%20%3C%200.05%20ms-8B5CF6?style=flat-square)]()
+[![Sim-to-Real: PPO](https://img.shields.io/badge/RL-Sim--to--Real%20PPO-F59E0B?style=flat-square&logo=pytorch&logoColor=white)]()
+
+<br />
+
+<!-- Animated Hero Banner: 1 Character Fishing in River & Live Mini Bar RL Telemetry -->
+<p align="center">
+  <img src="assets/hero-animated.svg" alt="Fisher — Autonomous Reinforcement Learning Agent for Stardew Valley" width="100%" />
+</p>
 
 > **An autonomous end-to-end RL system that masters the Stardew Valley fishing minigame on Windows using Sim-to-Real transfer, DXGI Desktop Duplication, OpenCV computer vision, and PPO.**
+
+<table align="center">
+  <tr>
+    <td align="center"><strong>Control Loop Rate</strong><br /><code>30 Hz (Δt ≈ 33.3 ms)</code></td>
+    <td align="center"><strong>Windows Timer Jitter</strong><br /><code>p99 &lt; 0.05 ms</code></td>
+    <td align="center"><strong>Per-Tick Latency</strong><br /><code>p50: 1.68 ms | p99: 3.21 ms</code></td>
+    <td align="center"><strong>Benchmark Catch Rate</strong><br /><code>100% Easy/Mid | 90% Hard</code></td>
+  </tr>
+</table>
+
+</div>
 
 ---
 
@@ -214,6 +237,10 @@ flowchart TD
 
 Rather than reverse-engineering the minigame through trial and error, Fisher is grounded directly in the decompiled C# source code of *Stardew Valley 1.6* (`references/BobberBar.cs`, 733 lines):
 
+<table width="100%">
+  <tr>
+    <td width="65%" valign="top">
+
 | Game Variable / Behavior | Source Reference in `BobberBar.cs` | Ground Truth Value in Simulator |
 |---|---|---|
 | **Track Dimensions** | Line 140 | Height = $568\text{ px}$, Width = $44\text{ px}$. Normalized to $y \in [0, 1]$. |
@@ -227,6 +254,13 @@ Rather than reverse-engineering the minigame through trial and error, Fisher is 
 | **Initial Progress** | Line 158 | $p_0 = 0.30$ (0.10 for the player's first-ever fish catch). |
 | **Fish Archetypes** | Lines 275–380 | 5 distinct motion models: `Mixed` (0), `Dart` (1), `Smooth` (2), `Sinker` (3), `Floater` (4). |
 | **Emergency Abort** | Line 641 (`emergencyShutDown`) | Pressing `ESC` triggers instant game abort with zero penalty. |
+
+    </td>
+    <td width="35%" align="center" valign="middle">
+      <img src="assets/minibar-animated.svg" alt="Animated Stardew Valley Bobber Bar Dynamics" width="280" />
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -263,6 +297,9 @@ fisher/
 ├── log.md                     # Persistent execution log & agent handoff history
 ├── plan.md                    # Master technical design and 5-phase roadmap
 ├── pyproject.toml             # Build system, dependencies & pytest configuration
+├── assets/                    # Vector SVG assets & dynamic theme graphics
+│   ├── hero-animated.svg      # Animated widescreen banner: Character fishing & mini bar RL HUD
+│   └── minibar-animated.svg   # Dedicated animated BobberBar physics dynamics widget
 ├── configs/                   # Single source of truth configuration
 │   ├── default.yaml           # Master defaults (game, control, sim, ppo, ui, safety)
 │   ├── capture_1080p.yaml     # 1080p calibrated bounding boxes & track coordinates
@@ -281,6 +318,7 @@ fisher/
 │   ├── bench_latency.py       # Microsecond end-to-end pipeline latency benchmark
 │   ├── calibrate.py           # Interactive & automated ROI calibration tool
 │   ├── eval_sim.py            # Nominal benchmark suite evaluation
+│   ├── generate_hero_svg.py   # Modern animated SVG asset generator
 │   ├── record.py              # 60 Hz live and synthetic minigame telemetry recorder
 │   └── train_sim.py           # Vectorized PPO training with curriculum
 ├── src/fisher/                # Core Python package

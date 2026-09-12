@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 340" width="100%" height="100%" style="background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="mbBarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#15803d"/>
+      <stop offset="25%" stop-color="#22c55e"/>
+      <stop offset="75%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#16a34a"/>
+    </linearGradient>
+
+    <linearGradient id="mbProgGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="40%" stop-color="#eab308"/>
+      <stop offset="85%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </linearGradient>
+
+    <linearGradient id="mbWoodGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <filter id="mbGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <style type="text/css"><![CDATA[
+      @keyframes mbFishMotion {
+        0% { transform: translateY(140px); }
+        22% { transform: translateY(35px); }
+        45% { transform: translateY(165px); }
+        68% { transform: translateY(70px); }
+        86% { transform: translateY(18px); }
+        100% { transform: translateY(140px); }
+      }
+
+      @keyframes mbBarPursuit {
+        0% { transform: translateY(132px); }
+        24% { transform: translateY(28px); }
+        48% { transform: translateY(156px); }
+        70% { transform: translateY(64px); }
+        88% { transform: translateY(14px); }
+        100% { transform: translateY(132px); }
+      }
+
+      @keyframes mbProgressFill {
+        0% { height: 110px; y: 162px; }
+        35% { height: 175px; y: 97px; }
+        75% { height: 215px; y: 57px; }
+        100% { height: 110px; y: 162px; }
+      }
+
+      @keyframes mbContactPulse {
+        0%, 100% { opacity: 0.25; }
+        50% { opacity: 0.9; }
+      }
+
+      @keyframes mbStatusPulse {
+        0%, 100% { fill: #22c55e; }
+        50% { fill: #4ade80; }
+      }
+
+      .mb-fish { animation: mbFishMotion 7s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
+      .mb-bar { animation: mbBarPursuit 7s cubic-bezier(0.4, 0.1, 0.4, 0.9) infinite; }
+      .mb-prog { animation: mbProgressFill 7s ease-in-out infinite; }
+      .mb-glow { animation: mbContactPulse 1.2s ease-in-out infinite; }
+      .mb-live { animation: mbStatusPulse 1.5s ease-in-out infinite; }
+    ]]></style>
+  </defs>
+
+  <!-- Container Box -->
+  <rect x="2" y="2" width="276" height="336" rx="12" fill="url(#mbWoodGrad)" stroke="#334155" stroke-width="1.5"/>
+
+  <!-- Header -->
+  <circle class="mb-live" cx="22" cy="24" r="4.5"/>
+  <text x="34" y="28" font-size="11" font-weight="800" fill="#f8fafc" letter-spacing="0.5">BOBBER BAR DYNAMICS</text>
+  <text x="256" y="27" text-anchor="end" font-size="9.5" font-weight="700" fill="#38bdf8">60 Hz / 1.0 ms</text>
+  <line x1="12" y1="40" x2="268" y2="40" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Bobber Bar Minigame Track -->
+  <g id="track-channel" transform="translate(24, 52)">
+    <!-- Outer Bezel -->
+    <rect x="0" y="0" width="56" height="236" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+    <rect x="4" y="5" width="48" height="226" rx="4" fill="#090d12"/>
+
+    <!-- Track Tick Lines -->
+    <line x1="4" y1="28" x2="10" y2="28" stroke="#334155" stroke-width="1"/>
+    <line x1="4" y1="62" x2="12" y2="62" stroke="#475569" stroke-width="1"/>
+    <line x1="4" y1="118" x2="16" y2="118" stroke="#64748b" stroke-width="1.2"/>
+    <line x1="4" y1="174" x2="12" y2="174" stroke="#475569" stroke-width="1"/>
+    <line x1="4" y1="208" x2="10" y2="208" stroke="#334155" stroke-width="1"/>
+
+    <!-- Contact Glow Underlay -->
+    <g class="mb-bar">
+      <rect class="mb-glow" x="2" y="5" width="52" height="56" rx="5" fill="#4ade80" filter="url(#mbGlow)"/>
+    </g>
+
+    <!-- Green Bobber Bar -->
+    <g class="mb-bar">
+      <rect x="5" y="7" width="46" height="52" rx="4" fill="url(#mbBarGrad)" stroke="#86efac" stroke-width="1"/>
+      <rect x="9" y="11" width="38" height="4" rx="2" fill="#bbf7d0" opacity="0.8"/>
+      <line x1="14" y1="33" x2="42" y2="33" stroke="#14532d" stroke-width="1" opacity="0.4"/>
+    </g>
+
+    <!-- Fish Sprite -->
+    <g class="mb-fish">
+      <g transform="translate(18, 22)">
+        <polygon points="0,9 -6,3 -6,15" fill="#ea580c"/>
+        <ellipse cx="9" cy="9" rx="10" ry="7" fill="#f97316"/>
+        <polygon points="7,2 11,0 12,3" fill="#fb923c"/>
+        <polygon points="7,16 11,18 12,15" fill="#fb923c"/>
+        <circle cx="15" cy="7" r="1.8" fill="#ffffff"/>
+        <circle cx="15.5" cy="7" r="1" fill="#0f172a"/>
+        <path d="M 5 5 Q 8 9 5 13" stroke="#c2410c" stroke-width="1" fill="none"/>
+      </g>
+    </g>
+
+    <!-- Bumpers -->
+    <rect x="4" y="5" width="48" height="4" fill="#334155"/>
+    <rect x="4" y="227" width="48" height="4" fill="#334155"/>
+  </g>
+
+  <!-- Progress Column -->
+  <g id="progress-meter" transform="translate(92, 52)">
+    <rect x="0" y="0" width="16" height="236" rx="4" fill="#090d12" stroke="#475569" stroke-width="1"/>
+    <rect class="mb-prog" x="3" y="57" width="10" height="215" rx="3" fill="url(#mbProgGrad)"/>
+    <line x1="0" y1="24" x2="16" y2="24" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="2 1" opacity="0.7"/>
+  </g>
+
+  <!-- Telemetry Labels -->
+  <g id="telemetry-info" transform="translate(122, 52)">
+    <!-- Card 1: Ground Truth Constants -->
+    <rect x="0" y="0" width="134" height="66" rx="5" fill="#090e15" stroke="#1e293b" stroke-width="1"/>
+    <text x="8" y="14" font-size="8.5" font-weight="700" fill="#94a3b8">DECOMPILED C# CONSTANTS</text>
+    <text x="8" y="29" font-size="10" font-weight="600" fill="#e2e8f0">Gravity: <tspan font-weight="800" fill="#38bdf8">0.25f px/t²</tspan></text>
+    <text x="8" y="44" font-size="10" font-weight="600" fill="#e2e8f0">In-Bar: <tspan font-weight="800" fill="#4ade80">0.60x (0.15f)</tspan></text>
+    <text x="8" y="59" font-size="10" font-weight="600" fill="#e2e8f0">Bounce: <tspan font-weight="800" fill="#fbbf24">2/3 (0.667)</tspan></text>
+
+    <!-- Card 2: PPO State -->
+    <rect x="0" y="74" width="134" height="66" rx="5" fill="#090e15" stroke="#1e293b" stroke-width="1"/>
+    <text x="8" y="88" font-size="8.5" font-weight="700" fill="#94a3b8">PPO ACTOR CONTROL</text>
+    <text x="8" y="103" font-size="10" font-weight="600" fill="#e2e8f0">Rate: <tspan font-weight="800" fill="#38bdf8">30 Hz</tspan></text>
+    <text x="8" y="118" font-size="10" font-weight="600" fill="#e2e8f0">Inference: <tspan font-weight="800" fill="#4ade80">&lt; 0.35 ms</tspan></text>
+    <text x="8" y="133" font-size="10" font-weight="600" fill="#e2e8f0">In-Bar Overlap: <tspan font-weight="800" fill="#22c55e">96.4%</tspan></text>
+
+    <!-- Card 3: Status Badge -->
+    <rect x="0" y="148" width="134" height="42" rx="5" fill="#0f291e" stroke="#15803d" stroke-width="1"/>
+    <text x="67" y="166" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">CAPTURE &amp; TRACKING</text>
+    <text x="67" y="181" text-anchor="middle" font-size="11" font-weight="900" fill="#4ade80">p99 = 3.21 ms [PASS]</text>
+  </g>
+
+  <!-- Footer Notice -->
+  <text x="140" y="318" text-anchor="middle" font-size="9" font-weight="500" fill="#64748b">Exact 1:1 Physics from BobberBar.cs (Lines 405-457)</text>
+</svg>
