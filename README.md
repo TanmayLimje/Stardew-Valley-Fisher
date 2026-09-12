@@ -13,9 +13,9 @@
 
 <br />
 
-<!-- Animated Hero Banner: 1 Character Fishing in River & Live Mini Bar RL Telemetry -->
+<!-- Animated ASCII Terminal Hero Banner: Cybernetic Typography & River Aquarium -->
 <p align="center">
-  <img src="assets/hero-animated.svg" alt="Fisher — Autonomous Reinforcement Learning Agent for Stardew Valley" width="100%" />
+  <img src="assets/banner-ascii.gif" alt="Fisher — Autonomous Reinforcement Learning Agent for Stardew Valley" width="100%" />
 </p>
 
 > **An autonomous end-to-end RL system that masters the Stardew Valley fishing minigame on Windows using Sim-to-Real transfer, DXGI Desktop Duplication, OpenCV computer vision, and PPO.**
