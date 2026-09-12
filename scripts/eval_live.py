@@ -316,12 +316,26 @@ def run_live_evaluation(
             mean_in_bar = last_info.get("mean_in_bar", 0.0)
 
             peak_prog = last_info.get("peak_progress", last_info.get("progress", 0.0))
+
+            # Determine precise termination reason for diagnostics
+            if is_catch:
+                termination_reason = "catch"
+            elif is_escape:
+                termination_reason = "escape"
+            elif last_info.get("ui_lost", False):
+                termination_reason = "ui_lost"
+            elif last_info.get("timeout", False):
+                termination_reason = "timeout"
+            else:
+                termination_reason = "unknown"
+
             outcome_str = "[green]CATCH[/green]" if is_catch else ("[red]ESCAPE[/red]" if is_escape else "[yellow]TIMEOUT/LOST[/yellow]")
             console.print(
                 f"  Episode {ep_idx} finished: {outcome_str} | "
                 f"Duration: {ep_duration:.2f}s | "
                 f"In-Bar: {mean_in_bar * 100:.1f}% | "
-                f"Peak Progress: {peak_prog * 100:.1f}%"
+                f"Peak Progress: {peak_prog * 100:.1f}% | "
+                f"Reason: [dim]{termination_reason}[/dim]"
             )
 
             # Record episode log to JSONL
@@ -334,6 +348,7 @@ def run_live_evaluation(
                 {
                     "episode": ep_idx,
                     "outcome": "catch" if is_catch else ("escape" if is_escape else "truncated"),
+                    "termination_reason": termination_reason,
                     "is_catch": is_catch,
                     "duration_s": ep_duration,
                     "mean_in_bar": mean_in_bar,

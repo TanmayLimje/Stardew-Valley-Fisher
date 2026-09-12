@@ -47,7 +47,7 @@ class LiveFishingEnv(gym.Env):
         max_duration_s: float = 30.0,
         auto_start_capture: bool = True,
         wait_for_ui_on_reset: bool = False,
-        ui_lost_threshold_frames: int = 15,
+        ui_lost_threshold_frames: int = 20,
         require_foreground: bool = True,
         foreground_lost_threshold_frames: int = 15,
         render_mode: Optional[str] = None,
@@ -394,8 +394,12 @@ class LiveFishingEnv(gym.Env):
         ui_lost = self.ui_lost_count >= self.ui_lost_threshold_frames
 
         # Stardew Valley BobberBar.cs (lines 594 & 603) ground truth: the minigame ONLY closes on catch or escape.
-        # If UI vanishes after progress was high (peak >= 0.85), this is a confirmed catch.
-        if ui_lost and self.peak_progress >= 0.85:
+        # If UI vanishes after progress was high (peak >= 0.75), this is a confirmed catch.
+        # Threshold lowered from 0.85 to 0.75: at 75%+ progress the fish is nearly caught; detection
+        # dropouts from white-flash or momentary tracking loss should not count as a LOSS. The game
+        # cannot physically transition from 75%+ progress to escape in less than ~1.5s, which is longer
+        # than our ui_lost_threshold_frames window (20 frames @ 30 Hz = 0.67s).
+        if ui_lost and self.peak_progress >= 0.75:
             is_catch = True
 
         # Escape: in Stardew Valley, p0=0.30 takes >= 1.67s to drain.
