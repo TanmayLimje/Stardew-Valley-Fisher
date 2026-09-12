@@ -41,6 +41,11 @@ class TrackDetector:
         self._consecutive_misses: int = 0
         self._is_active: bool = False
 
+    def reset(self) -> None:
+        """Reset detection state for a new episode."""
+        self._consecutive_misses = 0
+        self._is_active = False
+
     def detect_track(self, roi_frame: np.ndarray) -> Tuple[bool, float]:
         """
         Check if the fishing minigame track is present in the ROI frame.

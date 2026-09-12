@@ -166,6 +166,12 @@ class LiveFishingEnv(gym.Env):
         super().reset(seed=seed)
         options = options or {}
 
+        # 0. Reset ALL extractor state from previous episode immediately.
+        # This clears _last_known_b, _last_known_f, _last_known_p, velocity histories,
+        # debounce counters, and the track detector's _is_active flag. Without this,
+        # stale values from a previous minigame leak into the new episode's observations.
+        self.extractor.reset()
+
         # 1. Ensure mouse is released safely
         self.actuator.release()
 
@@ -296,7 +302,14 @@ class LiveFishingEnv(gym.Env):
         self.start_time = time.perf_counter()
         self.timer.reset()
 
-        # 5. Grab initial frame and extract starting features
+        # 5. Reset extractors AGAIN before the step loop begins.
+        # The detection phase above may have called detect_track() and extract()
+        # multiple times, polluting _last_known values and _consecutive_zeros counters
+        # with intermediate detection-phase artifacts. This ensures the step loop
+        # starts with clean extractor state.
+        self.extractor.reset()
+
+        # 6. Grab initial frame and extract starting features
         frame, ts = self.capture.get_latest_frame()
         self._last_full_frame = frame
         if frame is None:
@@ -347,6 +360,7 @@ class LiveFishingEnv(gym.Env):
         # 4. Extract visual features
         extraction = self.extractor.extract_features(frame, ts, prev_action=int(action))
         self._last_extraction = extraction
+
         self.progress = extraction.progress
         t_proc_end = time.perf_counter()
 
@@ -445,8 +459,10 @@ class LiveFishingEnv(gym.Env):
             "progress": self.progress,
             "peak_progress": self.peak_progress,
             "in_bar": extraction.in_bar,
+            "is_active": extraction.is_active,
             "mean_in_bar": mean_in_bar,
             "bar_pos": extraction.bar_pos,
+            "bar_height": extraction.bar_height,
             "fish_pos": extraction.fish_pos,
             "confidence": extraction.confidence,
             "latency_ms": tick_latency_ms,

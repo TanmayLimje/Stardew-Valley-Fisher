@@ -294,9 +294,12 @@ def run_live_evaluation(
                         "t": time.perf_counter() - ep_start_time,
                         "action": action,
                         "bar_pos": float(info["bar_pos"]),
+                        "bar_height": float(info.get("bar_height", 0.0)),
                         "fish_pos": float(info["fish_pos"]),
                         "progress": float(info["progress"]),
                         "in_bar": bool(info["in_bar"]),
+                        "is_active": bool(info.get("is_active", True)),
+                        "confidence": float(info.get("confidence", 0.0)),
                         "latency_ms": float(info["latency_ms"]),
                     }
                 )
@@ -444,7 +447,7 @@ def run_live_evaluation(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fisher Phase 3 Live Client Transfer Evaluation")
     parser.add_argument("--episodes", type=int, default=20, help="Number of minigame episodes to evaluate (default: 20)")
-    parser.add_argument("--policy", type=str, default="models/ppo_fisher_best.zip", help="Path to PPO model weights")
+    parser.add_argument("--policy", "--model", type=str, default="models/ppo_fisher_best.zip", help="Path to PPO model weights")
     parser.add_argument("--stats", type=str, default=None, help="Path to VecNormalize pkl stats")
     parser.add_argument("--baseline", action="store_true", help="Evaluate scripted BangBang policy instead of PPO")
     parser.add_argument("--mock", action="store_true", help="Run with mock hardware drivers (for CI/automated testing)")

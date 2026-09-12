@@ -34,6 +34,7 @@ class FeatureExtractor:
 
     def reset(self) -> None:
         """Reset internal trackers for a new fishing minigame episode."""
+        self.track_detector.reset()
         self.bar_extractor.reset()
         self.fish_tracker.reset()
         self.progress_tracker.reset()

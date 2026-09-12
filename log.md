@@ -1151,5 +1151,39 @@ Three cascading bugs in [`src/fisher/extraction/track.py`](file:///d:/projects/f
 - **Full Telemetry Logged:** Any future recording with `fisher --preview` (or `[R]`) will have complete per-frame metrics in its companion `.jsonl`.
 - **Analyzer Ready:** Run `python scripts/analyze_preview_video.py <path_to_video.mp4>` anytime to inspect any gameplay recording.
 
+---
+
+### [2026-09-13] Agent Session: Antigravity (Gemini 3.8 Flash) — Phase 3: Extractor State Isolation, Telemetry Diagnostics & Live Env Hardening
+
+- **Agent:** Antigravity (Gemini 3.8 Flash)
+- **Target Phase:** Phase 3 — Live Evaluation, Extractor State Isolation & Diagnostics
+- **Session Objective:** Diagnose and resolve sim-to-real observation anomalies (frozen fallback values, state leakage between episodes), harden `LiveFishingEnv` and `FeatureExtractor` reset lifecycles, expand telemetry reporting, and add automated live evaluation diagnostics.
+
+#### 1. Code Changes
+| Action | File Path | Rationale & Architectural Impact |
+|---|---|---|
+| [MODIFY] | [`src/fisher/extraction/track.py`](file:///d:/projects/fisher/src/fisher/extraction/track.py) | Added `reset()` method to `TrackDetector` to clear `_is_active` and `_consecutive_misses`, preventing debounce leakage across episodes. |
+| [MODIFY] | [`src/fisher/extraction/extractor.py`](file:///d:/projects/fisher/src/fisher/extraction/extractor.py) | Added `self.track_detector.reset()` into `FeatureExtractor.reset()` so that all feature sub-extractors and track detectors are comprehensively reset. |
+| [MODIFY] | [`src/fisher/env/live_env.py`](file:///d:/projects/fisher/src/fisher/env/live_env.py) | 1. Added explicit `self.extractor.reset()` at the start of `reset()` to ensure stale state from prior episodes is purged immediately.<br>2. Re-invoked `self.extractor.reset()` immediately before the active step loop starts to prevent detection-phase artifact pollution.<br>3. Enriched step `info` dictionary with `is_active` and `bar_height`. |
+| [MODIFY] | [`scripts/eval_live.py`](file:///d:/projects/fisher/scripts/eval_live.py) | Added `bar_height`, `is_active`, and `confidence` fields to per-step JSONL telemetry logging. |
+| [NEW] | [`scripts/diagnose_obs.py`](file:///d:/projects/fisher/scripts/diagnose_obs.py) | Created automated CLI tool to parse evaluation JSONL files and identify frozen observations, extraction dropouts, and impossible rate transitions. |
+
+#### 2. Verification & Benchmarks Run
+- `pytest -v`: **62 passed, 2 warnings in 22.60s** (Zero regressions across the entire suite).
+- `python scripts/diagnose_obs.py reports/live_eval/eval_live_20260912_191127_ep01.jsonl`: Successfully identified historical telemetry anomalies and validated reporting.
+
+#### 3. Exit Gates & Deliverable Status
+- [x] Extractor state leakage eliminated via complete reset cascade across all sub-components.
+- [x] `TrackDetector` maintains clean debounce counters per episode.
+- [x] Enhanced telemetry records `bar_height`, `is_active`, and `confidence` per step.
+- [x] Dedicated diagnostic utility (`scripts/diagnose_obs.py`) available for telemetry validation.
+- [x] Automated test suite 100% green (**62/62 passed**).
+
+#### 4. Review & Handoff Notes for Next Agent
+- **Observations on Preceding Code:** The core reason for frozen observations during live evaluation was the persistence of `_last_known` and debounce counters across episode boundaries. With the multi-point reset lifecycle now in place, each episode starts from pristine extractor state.
+- **Diagnostic Tooling:** When evaluating live gameplay with `fisher --eval-live`, run `python scripts/diagnose_obs.py reports/live_eval/*.jsonl` to inspect observation quality and verify zero frozen frames.
+- **Next Steps:** Proceed with Phase 4 full live-gameplay evaluation sessions and fine-tuning.
+
+
 
 
