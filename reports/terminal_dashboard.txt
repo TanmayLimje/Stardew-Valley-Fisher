@@ -1,0 +1,35 @@
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FISHER TELEMETRY CONSOLE              STATUS: RL_ACTIVE (30 Hz)               KILLSWITCH [F9]: ARMED │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────── Training Progress & Throughput ─────────┐┌────────── Policy Optimization Metrics ───────────┐
+│ Timesteps:       3,000,000 / 30,000,000          ││ Target Environment:        Stardew 1.6           │
+│ Progress:        10.0%                           ││ Compute Device:            Screen 3 (1080p)      │
+│                  ---                             ││ Policy Loss:               -0.0002               │
+│ Throughput:      9,187 steps/s                   ││ Value Loss:                2.8600                │
+│ ETA:             --:--:--                        ││ Entropy:                   -0.2610               │
+│                                                  ││ Explained Var:             0.898                 │
+│                                                  ││ Learning Rate:             3.00e-04              │
+│                                                  ││                                                  │
+└──────────────────────────────────────────────────┘└──────────────────────────────────────────────────┘
+┌──────── Episode Performance & Difficulty ────────┐┌─────────── System Health & Watchdogs ────────────┐
+│ Episodes Run:               120                  ││ Loop Control Rate:      30 Hz (33.3 ms period)   │
+│ Overall Catch Rate:         89.2%                ││ Tick Latency:           2.95 ms                  │
+│ Mean Reward:                +14.32               ││ Scheduler Jitter:       0.04 ms                  │
+│ Mean Duration:              8.5 s                ││ Capture Latency:        0.00 ms                  │
+│ Difficulty ≤ 40:            100.0% (Easy)        ││ CV Extraction:          2.61 ms                  │
+│ Difficulty 41–70:           100.0% (Mid)         ││ Game Window:            FOREGROUND               │
+│ Difficulty 71–90:           90.0% (Hard)         ││ In-Game Clock:          01:40 PM                 │
+│ Difficulty > 90:            45.0% (Expert)       ││ Player Stamina:         92%                      │
+│                                                  ││                                                  │
+└──────────────────────────────────────────────────┘└──────────────────────────────────────────────────┘
+┌────────────────────────────────────── Recent Telemetry Events ───────────────────────────────────────┐
+│  EVENT             Feature extractor locked BobberBar ROI [720, 150, 910, 800]                       │
+│  EVENT             HighPrecisionTimer engaged (winmm quantum 1.0ms, p99 jitter 0.043ms)              │
+│  EVENT             On-demand watcher transitioned IDLE -> RL_ACTIVE (paddle engaged)                 │
+│  EVENT             Fish caught! Reward +15.56, LMB released, transitioned RL_ACTIVE -> IDLE          │
+│                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
