@@ -1366,3 +1366,30 @@ None â€” this was a pure validation run of fixes applied in the prior session.
 
 
 
+
+---
+
+### [2026-09-18] Agent Session: OpenCode (kimi-k3) — Waterer Plan Feasibility Review & Revision (v0 ? v0.1)
+
+- **Agent:** OpenCode (kimi-k3)
+- **Target Phase:** Side project — Auto Waterer (`waterer_plan.md`), pre-implementation planning
+- **Session Objective:** Review `waterer_plan.md` feasibility against the actual codebase and game mechanics, then fold all findings into the plan.
+
+#### 1. Code Changes
+| Action | File Path | Rationale & Architectural Impact |
+|---|---|---|
+| [MODIFY] | [`waterer_plan.md`](file:///d:/projects/fisher/waterer_plan.md) | v0 ? v0.1 revision. Folded in 5 review gaps: (1) cursor-aim tool targeting replaces WASD facing taps as primary aim mechanism (Q8 experiment added, `cursor_aim` config); (2) grid-phase recovery (`estimate_grid_phase`) promoted to first-class Phase 1 deliverable with new test #14; (3) F9 < 200 ms mechanism fixed — `interruptible_sleep` chunked sleeps (new `fisher.utils.timing` helper) + cross-thread `release_all_keys()` from safety daemon; (4) `tests/fixtures/farm_generator.py` added — existing `MockCaptureDriver` only makes fishing-minigame frames, unusable for `--water --mock`; (5) bookkeeping — typed `waterer` property on `FisherConfig`, concrete hooks instead of abstract methods (repo convention), test counts unified at 14, Phase 1/3 estimates 1.5?2.0 d each (total 4.5?5.5 d). Also: HSV placeholder warning + mandatory real-frame calibration, mature-crop occlusion note (count-based watering primary), camera-clamp risk + `map_edge_margin_tiles`, watering animation lock (`watering_anim_ms: 450`). |
+
+#### 2. Verification & Benchmarks Run
+- `pytest -v`: **69 passed, 1 warning in 33.51s** (green baseline confirmed; no code changed, plan document only).
+- Codebase verification: only 2 `Actuator` subclasses exist (Phase 0 blast radius confirmed); capture drivers accept `roi=None` (full-frame capture for waterer confirmed); `SafetySupervisor` reuse validated.
+
+#### 3. Exit Gates & Deliverable Status
+- [x] Feasibility verdict delivered: **feasible, no architecture-level blockers**; zero-new-deps claim verified.
+- [x] All 5 identified gaps folded into phase task lists, file manifest, test plan, open questions, and risk table.
+- [ ] Implementation pending user approval (plan remains in planning status).
+
+#### 4. Review & Handoff Notes for Next Agent
+- **Key design decision to verify first:** Q8 — whether Stardew 1.6.x targets tools toward the cursor when it rests within ~1 tile of the farmer. The whole aim strategy hinges on this; resolve with a real-game experiment in Phase 1 before finalizing the navigator.
+- **Do not skip grid-phase recovery:** world tiles are not screen-aligned (continuous movement); without per-scan phase recovery, HSV cells straddle world tiles most of the time.
+- **Recommended Immediate Next Step:** On user approval, start Phase 0 (input hooks + `interruptible_sleep` + config property), then Phase 1 with the real-frame calibration session.
