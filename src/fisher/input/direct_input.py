@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import threading
 import time
 from typing import Optional
 
@@ -45,6 +46,8 @@ class DirectInputActuator(Actuator):
         self._pressed = False
         self._last_press_time = 0.0
         self._last_release_time = 0.0
+        self._held_keys: set[str] = set()
+        self._keys_lock = threading.Lock()
 
         if not is_admin_process():
             logger.warning(
@@ -160,7 +163,7 @@ class DirectInputActuator(Actuator):
                 self._last_release_time = time.perf_counter()
 
     def emergency_release(self) -> None:
-        """Force mouse release regardless of cached state."""
+        """Force mouse release and release all held keys regardless of cached state."""
         try:
             pydirectinput.mouseUp(button="left")
         except Exception as exc:
@@ -168,6 +171,7 @@ class DirectInputActuator(Actuator):
         finally:
             self._pressed = False
             self._last_release_time = time.perf_counter()
+        self.release_all_keys()
 
     def set_press(self, pressed: bool) -> None:
         """Idempotently set mouse press state."""
@@ -207,3 +211,60 @@ class DirectInputActuator(Actuator):
     def is_pressed(self) -> bool:
         """Current LMB press state."""
         return self._pressed
+
+    # ------------------------------------------------------------------
+    # Keyboard & cursor (waterer WASD navigation / tool aiming)
+    # ------------------------------------------------------------------
+
+    def key_down(self, key: str) -> None:
+        """Hold a keyboard key down via DirectInput scan code.
+
+        Guarded by strict_foreground to prevent input leakage to other monitors.
+        """
+        if self.strict_foreground and not self.is_game_foreground():
+            return
+        try:
+            pydirectinput.keyDown(key)
+            with self._keys_lock:
+                self._held_keys.add(key)
+        except Exception as exc:
+            logger.error(f"Failed to dispatch keyDown({key}): {exc}")
+
+    def key_up(self, key: str) -> None:
+        """Release a keyboard key via DirectInput scan code."""
+        try:
+            pydirectinput.keyUp(key)
+        except Exception as exc:
+            logger.error(f"Failed to dispatch keyUp({key}): {exc}")
+        finally:
+            with self._keys_lock:
+                self._held_keys.discard(key)
+
+    def move_cursor(self, x: int, y: int) -> None:
+        """Park the OS cursor on a target tile's screen position (tool aiming).
+
+        Uses win32api.SetCursorPos (same precedent as ensure_cursor_in_window).
+        """
+        if self.strict_foreground and not self.is_game_foreground():
+            return
+        try:
+            import win32api
+            win32api.SetCursorPos((x, y))
+        except Exception as exc:
+            logger.error(f"Failed to move cursor to ({x}, {y}): {exc}")
+
+    def release_all_keys(self) -> None:
+        """Release all currently held keyboard keys.
+
+        Thread-safe: called from the SafetySupervisor daemon thread so the
+        F9 killswitch meets the < 200 ms release gate even while the main
+        loop is blocked in a WASD hold sleep.
+        """
+        with self._keys_lock:
+            for key in list(self._held_keys):
+                try:
+                    pydirectinput.keyUp(key)
+                except Exception:
+                    pass
+            self._held_keys.clear()
+

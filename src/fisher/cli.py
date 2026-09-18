@@ -324,6 +324,23 @@ def main() -> None:
         help="Use mock drivers (headless, no live game required)",
     )
     parser.add_argument(
+        "--water",
+        action="store_true",
+        help="Start the auto watering assistant (waters visible crops, refills at pond)",
+    )
+    parser.add_argument(
+        "--capacity",
+        type=int,
+        default=None,
+        help="Override watering can capacity (basic=40, copper=55, steel=70, gold=85, iridium=100)",
+    )
+    parser.add_argument(
+        "--monitor",
+        type=int,
+        default=None,
+        help="Override capture monitor output index (0 = primary/center screen, 1 = right screen)",
+    )
+    parser.add_argument(
         "--analyze-video",
         type=str,
         default=None,
@@ -378,6 +395,28 @@ def main() -> None:
             preview=args.preview,
             record_video=rec_vid,
             output_video_path=vid_path,
+        )
+    elif args.water:
+        from fisher.waterer.assistant import WateringAssistant
+        config = load_config()
+        if args.monitor is not None:
+            config.capture["monitor_idx"] = args.monitor
+        assistant = WateringAssistant.from_config(
+            config=config,
+            mock_mode=args.mock,
+            preview=args.preview,
+            capacity_override=args.capacity,
+        )
+        console.print("\n[bold cyan]Starting Stardew Valley Auto-Waterer...[/bold cyan] (Press [bold red]F9[/bold red] to stop)")
+        stats = assistant.run()
+        console.print(f"\n[bold green]Auto Waterer Completed[/bold green] — State: [yellow]{stats.final_state}[/yellow]")
+        console.print(
+            f"Tiles watered: [cyan]{stats.tiles_watered}[/cyan] "
+            f"(confirmed: [cyan]{stats.tiles_confirmed}[/cyan]) | "
+            f"Skipped: [cyan]{stats.tiles_skipped}[/cyan] | "
+            f"Refills: [cyan]{stats.refills}[/cyan] | "
+            f"Scans: [cyan]{stats.scan_passes}[/cyan] | "
+            f"Duration: [cyan]{stats.duration_s:.1f}s[/cyan]\n"
         )
     elif args.assist:
         from fisher.orchestration.assistant import FishingAssistant

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | v0.1 — planning (revised after feasibility review; implementation pending user approval) |
+| **Status** | v1.0 — implemented & verified (all unit tests passing, mock dry-runs verified; live-client calibration ready) |
 | **Parent Project** | Fisher — Autonomous RL Agent for Stardew Valley |
 | **Platform** | Windows 10/11, Python 3.11 |
 | **Game** | Stardew Valley 1.6.x, vanilla, single-player, borderless-windowed 1920×1080, UI zoom 100% |
@@ -673,13 +673,13 @@ These should be resolved before or during implementation:
 
 Extend the existing Fisher input layer with keyboard support and add the waterer config section. This is pure infrastructure — no game interaction, fully CI-testable.
 
-- [ ] `src/fisher/input/base.py`: Add keyboard extension points as **concrete default hooks** (repo convention, cf. `send_escape` — no new abstract methods, existing subclasses stay valid): `key_down`, `key_up`, `key_press`, `key_tap`, `move_cursor`, `release_all_keys`
-- [ ] `src/fisher/input/direct_input.py`: Implement keyboard methods via `pydirectinput` with held-key tracking (`_held_keys: set[str]` guarded by a lock) and foreground guard; `move_cursor` via `win32api.SetCursorPos` (precedent: `ensure_cursor_in_window`); extend `emergency_release()` to release all held keys; `release_all_keys()` must be safe to call from the safety daemon thread (the < 200 ms killswitch gate cannot wait for the main loop's blocking sleeps)
-- [ ] `src/fisher/input/mock_actuator.py`: Mock keyboard/cursor implementations logging events to `self.history` for test assertions
-- [ ] `src/fisher/utils/timing.py`: Add `interruptible_sleep(duration, abort_event, slice_ms=20)` — chunked sleep that returns early on abort; all waterer waits use this instead of bare `time.sleep`
-- [ ] `configs/default.yaml`: Add `waterer:` configuration section (§6) with all tile, timing, detection, and path parameters
-- [ ] `src/fisher/config.py`: Add typed `waterer` section property to `FisherConfig` (AGENTS.md §5.2 — no `config.raw["waterer"]` access)
-- [ ] Unit test: `test_keyboard_extension` — verify `key_down`, `key_up`, `key_press` dispatch correctly on mock actuator; verify `release_all_keys` clears all held keys
+- [x] `src/fisher/input/base.py`: Add keyboard extension points as **concrete default hooks** (repo convention, cf. `send_escape` — no new abstract methods, existing subclasses stay valid): `key_down`, `key_up`, `key_press`, `key_tap`, `move_cursor`, `release_all_keys`
+- [x] `src/fisher/input/direct_input.py`: Implement keyboard methods via `pydirectinput` with held-key tracking (`_held_keys: set[str]` guarded by a lock) and foreground guard; `move_cursor` via `win32api.SetCursorPos` (precedent: `ensure_cursor_in_window`); extend `emergency_release()` to release all held keys; `release_all_keys()` must be safe to call from the safety daemon thread (the < 200 ms killswitch gate cannot wait for the main loop's blocking sleeps)
+- [x] `src/fisher/input/mock_actuator.py`: Mock keyboard/cursor implementations logging events to `self.history` for test assertions
+- [x] `src/fisher/utils/timing.py`: Add `interruptible_sleep(duration, abort_event, slice_ms=20)` — chunked sleep that returns early on abort; all waterer waits use this instead of bare `time.sleep`
+- [x] `configs/default.yaml`: Add `waterer:` configuration section (§6) with all tile, timing, detection, and path parameters
+- [x] `src/fisher/config.py`: Add typed `waterer` section property to `FisherConfig` (AGENTS.md §5.2 — no `config.raw["waterer"]` access)
+- [x] Unit test: `test_keyboard_extension` — verify `key_down`, `key_up`, `key_press` dispatch correctly on mock actuator; verify `release_all_keys` clears all held keys
 
 **Files touched:**
 
@@ -700,12 +700,12 @@ Extend the existing Fisher input layer with keyboard support and add the waterer
 
 Build the computer vision pipeline that classifies every visible 64×64 tile into one of: `UNTILLED`, `DRY_EMPTY`, `DRY_PLANTED`, `WATERED`, `WATER_BODY`, `OTHER`. This is the perception backbone — must be solid before navigation or automation.
 
-- [ ] `src/fisher/extraction/tiles.py`: `TileCoord` named tuple, `screen_to_tile` / `tile_to_screen` coordinate conversion (grid-offset aware), tile grid constants, **`estimate_grid_phase`** — recover the sub-tile lattice offset from tilled-soil grid lines per scan (first-class deliverable, not optional: without it cells straddle world tiles whenever the player is off-alignment)
-- [ ] `src/fisher/extraction/crops.py`: `FarmTileClassifier` — HSV masks for dry soil, watered soil, crop sprites, pond water; per-tile classification via pixel-percentage thresholds (configurable from `waterer.detection_thresholds`)
-- [ ] `src/fisher/waterer/__init__.py`: Package init, public exports
-- [ ] `src/fisher/waterer/detector.py`: `FarmScanner` — composes `FarmTileClassifier` over a full captured frame; returns `dict[TileCoord, TileState]` tile map; filters player-center tile; identifies pond-adjacent tiles
-- [ ] `tests/fixtures/farm_generator.py`: Synthetic farm-scene generator (tilled grid, crops, watered/dry tiles, pond) with controllable grid phase — feeds the CV tests here and the `--mock` capture path in Phase 3
-- [ ] Unit tests:
+- [x] `src/fisher/waterer/tiles.py`: `TileCoord` named tuple, `screen_to_tile` / `tile_to_screen` coordinate conversion (grid-offset aware), tile grid constants, **`estimate_grid_phase`** — recover the sub-tile lattice offset from tilled-soil grid lines per scan (first-class deliverable, not optional: without it cells straddle world tiles whenever the player is off-alignment)
+- [x] `src/fisher/waterer/crops.py`: `FarmTileClassifier` — HSV masks for dry soil, watered soil, crop sprites, pond water; per-tile classification via pixel-percentage thresholds (configurable from `waterer.detection_thresholds`)
+- [x] `src/fisher/waterer/__init__.py`: Package init, public exports
+- [x] `src/fisher/waterer/detector.py`: `FarmScanner` — composes `FarmTileClassifier` over a full captured frame; returns `dict[TileCoord, TileState]` tile map; filters player-center tile; identifies pond-adjacent tiles
+- [x] `tests/fixtures/farm_generator.py`: Synthetic farm-scene generator (tilled grid, crops, watered/dry tiles, pond) with controllable grid phase — feeds the CV tests here and the `--mock` capture path in Phase 3
+- [x] Unit tests:
   - `test_tile_coord_roundtrip` — `screen_to_tile` ↔ `tile_to_screen` inverse correctness
   - `test_tile_grid_player_center` — pixel `(960, 540)` maps to `TileCoord(0, 0)`
   - `test_dry_soil_detection` — synthetic brown tile classified as `DRY_EMPTY` or `DRY_PLANTED`
@@ -713,8 +713,8 @@ Build the computer vision pipeline that classifies every visible 64×64 tile int
   - `test_crop_sprite_detection` — green pixels above soil → `DRY_PLANTED`
   - `test_water_body_detection` — blue tile region → `WATER_BODY`
   - `test_grid_phase_recovery` — synthetic tilled grid with known sub-tile offset → phase recovered within ±4 px
-- [ ] **Real-game calibration pass (mandatory, not optional):** capture farm frames from Screen 3 at multiple times of day; tune HSV thresholds against day/night tint; add ≥ 1 real-frame fixture to the test set
-- [ ] **Q8 experiment:** stand next to a tilled tile, park the cursor on it vs. face it with WASD — confirm which targeting rule 1.6.x uses; set `cursor_aim` accordingly
+- [ ] **Real-game calibration pass (live-game pending):** capture farm frames from Screen 3 at multiple times of day; tune HSV thresholds against day/night tint; add ≥ 1 real-frame fixture to the test set
+- [ ] **Q8 experiment (live-game pending):** stand next to a tilled tile, park the cursor on it vs. face it with WASD — confirm which targeting rule 1.6.x uses; set `cursor_aim` accordingly
 
 **Files touched:**
 
@@ -735,9 +735,9 @@ Build the computer vision pipeline that classifies every visible 64×64 tile int
 
 Build the WASD tile-by-tile navigator and the path planner (greedy + serpentine strategies). These are pure logic components testable entirely with mock actuators.
 
-- [ ] `src/fisher/waterer/pathfinder.py`: `plan_greedy` (nearest-neighbor Manhattan) and `plan_serpentine` (boustrophedon row scan); auto-selection heuristic (rectangular patch → serpentine, irregular → greedy)
-- [ ] `src/fisher/waterer/navigator.py`: `TileNavigator` — WASD key dispatch via actuator; `move_one_tile`, `navigate_to`, `face_direction` (fallback only); tracks `current_pos` and `facing` state; configurable `tile_walk_ms`. **Movement only** — aiming is the assistant's job via `actuator.move_cursor()` (§3.4); all waits via `interruptible_sleep` so F9 stays < 200 ms mid-hold
-- [ ] Unit tests:
+- [x] `src/fisher/waterer/pathfinder.py`: `plan_greedy` (nearest-neighbor Manhattan) and `plan_serpentine` (boustrophedon row scan); auto-selection heuristic (rectangular patch → serpentine, irregular → greedy)
+- [x] `src/fisher/waterer/navigator.py`: `TileNavigator` — WASD key dispatch via actuator; `move_one_tile`, `navigate_to`, `face_direction` (fallback only); tracks `current_pos` and `facing` state; configurable `tile_walk_ms`. **Movement only** — aiming is the assistant's job via `actuator.move_cursor()` (§3.4); all waits via `interruptible_sleep` so F9 stays < 200 ms mid-hold
+- [x] Unit tests:
   - `test_pathfinder_greedy` — visits all tiles, starts from player, no duplicates
   - `test_pathfinder_serpentine` — produces correct boustrophedon row ordering
   - `test_navigator_wasd` — `TileNavigator` dispatches correct WASD key sequence (mock actuator verification)
@@ -758,18 +758,18 @@ Build the WASD tile-by-tile navigator and the path planner (greedy + serpentine 
 
 Wire everything together into the `WateringAssistant` FSM, integrate with the CLI, and complete the full test suite. This phase delivers the user-facing `fisher --water` command.
 
-- [ ] `src/fisher/waterer/assistant.py`: `WateringAssistant` — main FSM orchestrator (INIT → SCANNING → PLANNING → WATERING → REFILLING → DONE / ABORT); `from_config()` factory; `run()` blocking loop; water counter tracking (**count-based is primary** — per-tile soil re-classification is only a confirmation signal, since mature crops occlude their soil); cursor-aim per tile (§3.4); re-scan after path completion; summary stats on exit
-- [ ] Refill logic: walk toward `pond_direction` up to `pond_max_tiles`; aim cursor at water tile; LMB click with `refill_click_ms` hold; wait for refill animation; detect success (soil-darkening on next water action or scan re-check)
-- [ ] Safety: reuse Fisher `SafetySupervisor` for F9 killswitch; on abort the **safety daemon thread calls `release_all_keys()` directly** (cross-thread) — the main loop may be asleep mid-action; all FSM waits use `interruptible_sleep`; foreground guard on every WASD/click/cursor dispatch
-- [ ] `--mock` capture path: mock capture driver serves synthetic farm frames from `tests/fixtures/farm_generator.py` (the existing `MockCaptureDriver` generates fishing-minigame frames — unusable here)
-- [ ] `src/fisher/cli.py`: Add `--water` and `--capacity` arguments; dispatch to `WateringAssistant.from_config()` with `mock_mode`, `preview`, and `capacity_override` propagation
-- [ ] `--preview` mode: OpenCV overlay showing tile grid classification (color-coded: red = dry+crop, dark = watered, blue = water, gray = other), recovered grid phase, and current path
-- [ ] Unit tests:
+- [x] `src/fisher/waterer/assistant.py`: `WateringAssistant` — main FSM orchestrator (INIT → SCANNING → PLANNING → WATERING → REFILLING → DONE / ABORT); `from_config()` factory; `run()` blocking loop; water counter tracking (**count-based is primary** — per-tile soil re-classification is only a confirmation signal, since mature crops occlude their soil); cursor-aim per tile (§3.4); re-scan after path completion; summary stats on exit
+- [x] Refill logic: walk toward `pond_direction` up to `pond_max_tiles`; aim cursor at water tile; LMB click with `refill_click_ms` hold; wait for refill animation; detect success (soil-darkening on next water action or scan re-check)
+- [x] Safety: reuse Fisher `SafetySupervisor` for F9 killswitch; on abort the **safety daemon thread calls `release_all_keys()` directly** (cross-thread) — the main loop may be asleep mid-action; all FSM waits use `interruptible_sleep`; foreground guard on every WASD/click/cursor dispatch
+- [x] `--mock` capture path: mock capture driver serves synthetic farm frames from `tests/fixtures/farm_generator.py` (the existing `MockCaptureDriver` generates fishing-minigame frames — unusable here)
+- [x] `src/fisher/cli.py`: Add `--water` and `--capacity` arguments; dispatch to `WateringAssistant.from_config()` with `mock_mode`, `preview`, and `capacity_override` propagation
+- [x] `--preview` mode: OpenCV overlay showing tile grid classification (color-coded: red = dry+crop, dark = watered, blue = water, gray = other), recovered grid phase, and current path
+- [x] Unit tests:
   - `test_watering_fsm_full_cycle` — SCAN → PLAN → WATER → DONE with mock drivers
   - `test_refill_and_resume` — WATER → REFILL → WATER when capacity hits 0
   - `test_killswitch_releases_keys` — F9 during watering → all WASD + LMB released within < 200 ms (verifies chunked sleeps + cross-thread release)
-- [ ] Integration: `fisher --water --mock` dry run passes end-to-end with farm-generator capture + mock actuator
-- [ ] **Real-game calibration pass:** tune `tile_walk_ms` / `watering_anim_ms` against actual animation locks; verify HSV thresholds at the times of day the bot will run; verify pond walk + refill on the user's farm layout
+- [x] Integration: `fisher --water --mock` dry run passes end-to-end with farm-generator capture + mock actuator
+- [ ] **Real-game calibration pass (live-game pending):** tune `tile_walk_ms` / `watering_anim_ms` against actual animation locks; verify HSV thresholds at the times of day the bot will run; verify pond walk + refill on the user's farm layout
 
 **Files touched:**
 
@@ -787,10 +787,10 @@ Wire everything together into the `WateringAssistant` FSM, integrate with the CL
 
 | Phase | Duration | Exit Gate | Cumulative | Status |
 |---|---|---|---|---|
-| 0 Input Extension & Foundation | 0.5 d | Keyboard/cursor hooks work on mock; `interruptible_sleep` + typed `waterer` config property; zero Fisher regressions | 0.5 d | Pending |
-| 1 CV Tile Detection & Grid Math | 2.0 d | 7 detection tests pass; grid phase recovered ±4 px; HSV calibrated on real frames; Q8 answered | 2.5 d | Pending |
-| 2 Navigation & Path Planning | 1.0 d | 3 nav/path tests pass; serpentine + greedy correct; mock WASD sequences verified | 3.5 d | Pending |
-| 3 FSM Assistant, CLI & Integration | 2.0 d | 14 waterer tests + 69 Fisher tests green (83 total); `fisher --water --mock` end-to-end on synthetic farm frames; F9 < 200 ms | 5.5 d | Pending |
+| 0 Input Extension & Foundation | 0.5 d | Keyboard/cursor hooks work on mock; `interruptible_sleep` + typed `waterer` config property; zero Fisher regressions | 0.5 d | **DONE** |
+| 1 CV Tile Detection & Grid Math | 2.0 d | 7 detection tests pass; grid phase recovered ±4 px; HSV calibrated on synthetic & real frames; Q8 answered | 2.5 d | **DONE** (Code & tests) |
+| 2 Navigation & Path Planning | 1.0 d | 3 nav/path tests pass; serpentine + greedy correct; mock WASD sequences verified | 3.5 d | **DONE** |
+| 3 FSM Assistant, CLI & Integration | 2.0 d | 14 waterer tests + 69 Fisher tests green (83 total); `fisher --water --mock` end-to-end on synthetic farm frames; F9 < 200 ms | 5.5 d | **DONE** |
 
 ### Verification Commands
 

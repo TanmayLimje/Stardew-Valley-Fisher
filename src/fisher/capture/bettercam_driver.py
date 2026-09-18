@@ -20,7 +20,7 @@ class BetterCamCaptureDriver(CaptureDriver):
     def __init__(
         self,
         device_idx: int = 0,
-        output_idx: Optional[int] = 1,
+        output_idx: Optional[int] = None,
         roi: Optional[Tuple[int, int, int, int]] = None,
         target_fps: float = 60.0,
         auto_bind_window: Optional[str] = "Stardew Valley",
@@ -28,7 +28,7 @@ class BetterCamCaptureDriver(CaptureDriver):
         """
         Args:
             device_idx: DXGI adapter index (0 = discrete GPU, e.g. RTX 4060).
-            output_idx: Monitor output index on adapter (1 = Screen 3 / DISPLAY6).
+            output_idx: Monitor output index on adapter (0 = Primary / center screen).
             roi: Optional (x0, y0, x1, y1) crop region within target display.
             target_fps: Target acquisition rate (nominal 60.0 Hz).
             auto_bind_window: If set, query window title to resolve target display.
@@ -60,18 +60,24 @@ class BetterCamCaptureDriver(CaptureDriver):
 
     def _resolve_monitor(self) -> Tuple[int, int]:
         """Resolve device and output indices, matching multi-monitor topology."""
+        if self.output_idx is not None:
+            return (self.device_idx, self.output_idx)
+
         if self.auto_bind_window:
             mon_idx = get_window_monitor_index(self.auto_bind_window)
             if mon_idx is not None:
-                # Screen 3 is display index 2 (DISPLAY6) -> Device 0 Output 1
-                if mon_idx == 2:
-                    return (0, 1)
-                elif mon_idx == 1:
-                    return (0, 0)
-                elif mon_idx == 0:
-                    return (1, 0)
-        out_idx = self.output_idx if self.output_idx is not None else 1
-        return (self.device_idx, out_idx)
+                displays = get_connected_displays()
+                if 0 <= mon_idx < len(displays):
+                    disp = displays[mon_idx]
+                    if disp.is_primary:
+                        return (0, 0)
+                    elif disp.rect[0] >= 1920:
+                        return (0, 1)
+                    elif disp.rect[0] < 0:
+                        return (1, 0)
+
+        # Default to Primary display (Device 0 Output 0)
+        return (self.device_idx, 0)
 
     def _init_camera(self) -> bool:
         """Instantiate bettercam camera object."""

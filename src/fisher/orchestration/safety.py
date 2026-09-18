@@ -14,7 +14,7 @@ import logging
 import os
 import threading
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger("fisher.orchestration.safety")
 
@@ -24,6 +24,11 @@ class SafetySupervisor:
 
     Runs a daemon thread polling for the killswitch key at ~50 Hz.
     The assistant checks ``is_abort_requested()`` at the top of every loop iteration.
+
+    ``on_abort`` is invoked **directly from the polling thread** the instant an
+    abort is detected. Actuators pass ``emergency_release`` here so held keys
+    and mouse buttons are released cross-thread within one poll period even if
+    the main loop is blocked in a long animation-lock sleep.
     """
 
     def __init__(
@@ -31,10 +36,12 @@ class SafetySupervisor:
         killswitch_key: str = "f9",
         hard_abort_key: str = "ctrl+f9",
         poll_hz: float = 50.0,
+        on_abort: Optional[Callable[[], None]] = None,
     ) -> None:
         self.killswitch_key = killswitch_key
         self.hard_abort_key = hard_abort_key
         self._poll_period = 1.0 / poll_hz
+        self._on_abort = on_abort
 
         self._abort_requested = threading.Event()
         self._running = False
@@ -72,12 +79,23 @@ class SafetySupervisor:
     def request_abort(self, reason: str = "manual") -> None:
         """Programmatically request abort from any thread."""
         self._abort_reason = reason
-        self._abort_requested.set()
+        if not self._abort_requested.is_set():
+            self._abort_requested.set()
+            self._fire_on_abort()
         logger.warning("Abort requested: %s", reason)
 
     @property
     def abort_reason(self) -> str:
         return self._abort_reason
+
+    def _fire_on_abort(self) -> None:
+        """Invoke the abort callback once, swallowing callback failures."""
+        if self._on_abort is None:
+            return
+        try:
+            self._on_abort()
+        except Exception as exc:
+            logger.debug("Abort callback failed: %s", exc)
 
     # ------------------------------------------------------------------
     # Internal polling loop
@@ -96,15 +114,21 @@ class SafetySupervisor:
 
         while self._running:
             try:
-                # Hard abort: Ctrl+F9 → immediate process exit
+                # Hard abort: Ctrl+F9 → release inputs, then immediate process exit
                 if keyboard.is_pressed(self.hard_abort_key):
                     logger.critical("HARD ABORT: %s pressed — terminating process.", self.hard_abort_key)
+                    if not self._abort_requested.is_set():
+                        self._abort_reason = f"hard abort ({self.hard_abort_key})"
+                        self._abort_requested.set()
+                        self._fire_on_abort()
                     os._exit(1)
 
                 # Soft abort: F9 → set flag for clean shutdown
                 if keyboard.is_pressed(self.killswitch_key):
-                    self._abort_reason = f"killswitch ({self.killswitch_key})"
-                    self._abort_requested.set()
+                    if not self._abort_requested.is_set():
+                        self._abort_reason = f"killswitch ({self.killswitch_key})"
+                        self._abort_requested.set()
+                        self._fire_on_abort()
                     logger.warning("Killswitch %s pressed — requesting clean abort.", self.killswitch_key)
                     # Debounce: wait for key release before continuing to poll
                     while self._running and keyboard.is_pressed(self.killswitch_key):

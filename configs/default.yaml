@@ -85,3 +85,27 @@ safety:
   ui_lost_timeout_ms: 500
   tracker_lost_frames: 15
   capture_fps_floor: 45
+
+waterer:
+  tile_size_px: 64                # Tile grid size at 100% UI zoom 1080p
+  player_center: [960, 540]       # Player center on screen (camera-locked)
+  water_capacity: 40              # Watering can uses (basic=40, copper=55, steel=70, gold=85, iridium=100)
+  tile_walk_ms: 250               # WASD key hold per tile movement
+  watering_click_ms: 150          # LMB hold for watering action
+  refill_click_ms: 500            # LMB hold for refilling at pond
+  refill_anim_ms: 1000            # Refill animation lock before resuming watering
+  watering_anim_ms: 450           # Watering animation lock; movement blocked until elapsed
+  cursor_aim: true                # Aim tool by parking OS cursor on target tile (fallback false: WASD facing taps)
+  grid_phase: auto                # auto = recover sub-tile grid offset per scan; or [dx, dy] px
+  map_edge_margin_tiles: 15       # Sanity guard: skip targets farther than N tiles (covers visible frame)
+  max_scan_passes: 3              # Re-scan passes before declaring done
+  scan_settle_ms: 500             # Wait after all movement before scanning
+  pond_direction: "right"         # Cardinal direction to walk for refill
+  pond_max_tiles: 15              # Max tiles to walk toward pond before abort
+  path_strategy: "auto"           # auto | serpentine | greedy
+  detection_thresholds:
+    dry_soil_pct: 30              # % of tile pixels matching dry soil HSV
+    watered_soil_pct: 25          # % matching watered soil HSV
+    crop_sprite_pct: 10           # % matching green crop HSV
+    water_body_pct: 40            # % matching blue water HSV
+

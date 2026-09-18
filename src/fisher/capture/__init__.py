@@ -12,6 +12,8 @@ from fisher.config import FisherConfig, load_config
 def create_capture_driver(
     config: Optional[FisherConfig] = None,
     force_driver: Optional[str] = None,
+    roi_override: Optional[Tuple[int, int, int, int]] = None,
+    full_frame: bool = False,
 ) -> CaptureDriver:
     """Factory function to instantiate capture driver according to config.
 
@@ -29,7 +31,11 @@ def create_capture_driver(
     dynamic_roi = bool(cfg.capture.get("dynamic_roi", False))
     roi_dict = cfg.capture.get("roi")
     roi: Optional[Tuple[int, int, int, int]] = None
-    if roi_dict and not dynamic_roi:
+    if full_frame:
+        roi = None
+    elif roi_override is not None:
+        roi = roi_override
+    elif roi_dict and not dynamic_roi:
         roi = (roi_dict["x0"], roi_dict["y0"], roi_dict["x1"], roi_dict["y1"])
 
     target_fps = float(cfg.capture.get("target_fps", 60.0))
@@ -40,6 +46,7 @@ def create_capture_driver(
         # Attempt DXGI Desktop Duplication first
         try:
             driver = BetterCamCaptureDriver(
+                output_idx=mon_idx,
                 roi=roi,
                 target_fps=target_fps,
                 auto_bind_window=window_title,
@@ -69,8 +76,15 @@ def create_capture_driver(
             auto_bind_window=window_title,
         )
     elif driver_name == "mock":
-        w = roi[2] - roi[0] if roi else (roi_dict["x1"] - roi_dict["x0"] if roi_dict else 190)
-        h = roi[3] - roi[1] if roi else (roi_dict["y1"] - roi_dict["y0"] if roi_dict else 650)
+        if roi is not None:
+            w, h = roi[2] - roi[0], roi[3] - roi[1]
+        elif full_frame:
+            resolution = cfg.game.get("resolution", [1920, 1080])
+            w, h = int(resolution[0]), int(resolution[1])
+        elif roi_dict:
+            w, h = roi_dict["x1"] - roi_dict["x0"], roi_dict["y1"] - roi_dict["y0"]
+        else:
+            w, h = 1920, 1080
         return MockCaptureDriver(width=w, height=h, target_fps=target_fps)
     else:
         raise ValueError(f"Unknown capture driver '{driver_name}'. Must be bettercam, gdi, or mock.")

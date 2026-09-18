@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from typing import Dict, Generator
@@ -154,3 +155,34 @@ class HighPrecisionTimer:
         """Release multimedia timer resolution."""
         if self._win_timer is not None:
             self._win_timer.release()
+
+
+def interruptible_sleep(
+    duration: float,
+    abort_event: threading.Event,
+    slice_ms: float = 20.0,
+) -> bool:
+    """Sleep in small slices, returning early if abort_event is set.
+
+    Used by all waterer waits (WASD holds, animation locks, scan settles)
+    so the F9 killswitch meets the < 200 ms release gate even mid-sleep.
+
+    Args:
+        duration: Total sleep duration in seconds.
+        abort_event: threading.Event checked between slices.
+        slice_ms: Maximum sleep slice in milliseconds (default 20 ms).
+
+    Returns:
+        True if the full duration elapsed, False if interrupted by abort.
+    """
+    if duration <= 0:
+        return not abort_event.is_set()
+    slice_s = slice_ms / 1000.0
+    end = time.perf_counter() + duration
+    while time.perf_counter() < end:
+        if abort_event.is_set():
+            return False
+        remaining = end - time.perf_counter()
+        time.sleep(min(slice_s, max(0, remaining)))
+    return not abort_event.is_set()
+

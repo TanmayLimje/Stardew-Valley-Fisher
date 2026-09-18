@@ -61,6 +61,10 @@ class FisherConfig:
     def safety(self) -> Dict[str, Any]:
         return self.raw.get("safety", {})
 
+    @property
+    def waterer(self) -> Dict[str, Any]:
+        return self.raw.get("waterer", {})
+
 
 def get_default_config_path() -> Path:
     """Resolve default config file path."""
