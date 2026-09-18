@@ -560,6 +560,92 @@ terminal = extractor.check_terminal()
 - [x] Automated test suite: `tests/test_assistant.py` (7 tests, 100% pass)
 - **Done when:** `pytest -v` ≥ 69 passed (achieved 69 passed); assistant activates within 200 ms of BobberBar appearance; mouse always released; zero game interference during IDLE. [COMPLETED]
 
+#### How to Run Phase 4 (Live Gameplay Fishing Assistant)
+
+Run this command while playing *Stardew Valley* normally. You do the walking, farming, rod casting, and hook clicks; the AI assistant runs in the background, automatically detects the BobberBar minigame when it pops up, controls the mouse to catch the fish, and releases control immediately when the minigame finishes.
+
+##### 1. Pre-Flight Checklist
+| Item | Required Setting | Why It Matters |
+|---|---|---|
+| **Game Display** | **Screen 3** (`\\.\DISPLAY6`) | Dedicated display bound to DXGI Desktop Duplication capture. |
+| **Window Mode** | **Borderless Windowed** (1920×1080) | Required for zero-latency screen capture. |
+| **UI Scale** | **100% Zoom** | UI geometry is pixel-calibrated to 100% zoom. |
+| **Terminal Privilege** | **Run as Administrator** | Required by Windows UIPI so synthetic DirectInput mouse events reach the elevated game window, and for DXGI access. |
+| **Working Directory** | `d:\projects\fisher` | Ensure root directory is active in terminal. |
+
+##### 2. Commands Quick Reference
+
+```powershell
+# 1. Primary Command: Live background assistant (recommended for normal play)
+fisher --assist
+
+# 2. Live assistant with real-time OpenCV CV tracking preview HUD:
+fisher --assist --preview
+
+# 3. Headless mock dry-run (offline verification without launching the game):
+fisher --assist --mock
+
+# 4. Custom policy checkpoint path (optional):
+fisher --assist --policy-path models/ppo_fisher_best.zip
+
+# 5. Fallback invocation via Python module:
+python -m fisher --assist
+```
+
+##### 3. How the In-Game Fishing Flow Works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Player as Player (Human)
+    participant Game as Stardew Valley (Screen 3)
+    participant Assistant as Fisher Assistant (Background)
+    participant Policy as PPO RL Policy (30 Hz)
+
+    Note over Player, Game: Normal Gameplay & Exploration
+    Player->>Game: Walk, farm, explore, equip Fishing Rod
+    Assistant->>Game: Scans Screen 3 at 10 Hz (IDLE state, low CPU)
+    
+    Note over Player, Game: Manual Cast & Hook
+    Player->>Game: Cast fishing rod into water
+    Game-->>Player: Fish bites! ("!" alert + bobber splash)
+    Player->>Game: Click LMB to hook fish
+    
+    Note over Game, Assistant: Automatic AI Minigame Takeover
+    Game->>Game: BobberBar minigame appears on screen
+    Assistant->>Game: Detects BobberBar widget (2-frame confirm, < 200 ms)
+    Assistant->>Policy: Transitions to RL_ACTIVE (30 Hz control loop)
+    loop Every 33 ms while minigame active
+        Assistant->>Game: Captures frame & extracts bar / fish positions
+        Policy->>Game: Dispatches LMB HOLD / RELEASE via DirectInput
+    end
+    
+    Note over Game, Player: Seamless Control Handoff
+    Game->>Game: Fish caught! (Progress meter reaches 100%)
+    Assistant->>Game: Immediately releases mouse LMB button
+    Assistant->>Assistant: Logs episode stats & transitions back to IDLE (10 Hz)
+    Player->>Game: Click to dismiss item catch dialog and keep playing!
+```
+
+##### 4. Step-by-Step Instructions for Playing
+
+1. **Launch Stardew Valley:** Place the game on Screen 3 (`\\.\DISPLAY6`) in Borderless Windowed 1920×1080 at 100% UI Zoom.
+2. **Open Terminal:** Open **PowerShell** as **Administrator** and navigate to `D:\projects\fisher`.
+3. **Start Assistant:** Run `fisher --assist` (or `fisher --assist --preview` if you want to see the computer vision tracking boxes).
+   - The console will display:
+     ```
+     [Assistant] Started in IDLE mode. Watching Screen 3 at 10.0 Hz.
+     [Assistant] Play Stardew Valley normally. When you hook a fish, AI takes over!
+     ```
+4. **Fish Normally:** Cast your rod into any water body. When you see the `"!"` bite cue, click LMB to set the hook.
+5. **AI Takes Over:** The moment the BobberBar minigame opens, the AI automatically detects it in $< 200\text{ ms}$ and controls the green paddle to keep the fish centered.
+6. **Instant Return:** As soon as the fish is reeled in (or escapes), the assistant instantly releases the mouse button and goes back to `IDLE`.
+7. **Collect Loot:** Click through the catch reward popup, and carry on farming or fishing again!
+8. **Exit / Safety:**
+   - Press **`F9`** anytime to immediately release the mouse button and halt minigame control in $< 200\text{ ms}$.
+   - Press **`Ctrl+F9`** or **`Ctrl+C`** to shut down the assistant process.
+
+
 ### Milestone summary
 
 | Phase | Duration | Exit gate | Cumulative | Status |

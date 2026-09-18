@@ -37,3 +37,18 @@ stateDiagram-v2
   - `fisher --assist --preview`: Assistant with real-time OpenCV detection overlay.
   - `fisher --assist --mock`: Headless dry run for validation.
 - **Safety Guarantee:** Actuator mouse LMB is unconditionally released on every exit from RL_ACTIVE.
+
+---
+
+## How to Run During Gameplay
+
+1. **Launch Game:** Run *Stardew Valley* in Borderless Windowed (1920×1080, 100% UI zoom) on Screen 3 (`\\.\DISPLAY6`).
+2. **Start Assistant in Administrator Terminal:**
+   ```powershell
+   fisher --assist
+   # Or with OpenCV visual tracking HUD:
+   fisher --assist --preview
+   ```
+3. **Play:** Cast your rod and hook on bite ("!"). The AI automatically takes over mouse actuation during the BobberBar minigame and hands control back as soon as the fish is reeled in.
+4. **Emergency Stop:** Press `F9` anytime to immediately release the mouse.
+

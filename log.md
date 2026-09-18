@@ -1334,4 +1334,35 @@ None — this was a pure validation run of fixes applied in the prior session.
 - **Visual Assets:** All presentation images are stored under `reports/` and ready for external sharing or documentation.
 - **Next Steps:** Proceed with autonomous lifecycle hardening or community documentation as desired.
 
+---
+
+### [2026-09-18] Agent Session: Antigravity (Gemini 3.8 Flash) — Phase 4 Live Gameplay Commands & Player Guide
+
+- **Agent:** Antigravity (Gemini 3.8 Flash)
+- **Target Phase:** Phase 4: On-Demand Fishing Assistant Documentation & Operations
+- **Session Objective:** Add clear, comprehensive documentation and step-by-step instructions on how to run Phase 4 (`fisher --assist`) in [`plan.md`](file:///d:/projects/fisher/plan.md), [`phase4_plan.md`](file:///d:/projects/fisher/phase4_plan.md), and create a dedicated [`PHASE4_GUIDE.md`](file:///d:/projects/fisher/PHASE4_GUIDE.md) so the user can play Stardew Valley normally while the AI assistant automatically detects and catches fish during the BobberBar minigame.
+
+#### 1. Code Changes
+| Action | File Path | Rationale & Architectural Impact |
+|---|---|---|
+| [MODIFY] | [`plan.md`](file:///d:/projects/fisher/plan.md) | Added comprehensive "How to Run Phase 4 (Live Gameplay Fishing Assistant)" section under Phase 4 with pre-flight checklist, Mermaid sequence diagram, CLI commands (`fisher --assist`, `--preview`, `--mock`), and safety hotkeys. |
+| [MODIFY] | [`phase4_plan.md`](file:///d:/projects/fisher/phase4_plan.md) | Added "How to Run During Gameplay" section with 4-step quick start and commands. |
+| [NEW] | [`PHASE4_GUIDE.md`](file:///d:/projects/fisher/PHASE4_GUIDE.md) | Created clean, user-friendly player walkthrough matching the format of `PHASE3_GUIDE.md`. |
+
+#### 2. Verification & Benchmarks Run
+- `pytest -v`: **69 passed, 2 warnings in 35.25s** (Verified green baseline; zero regressions).
+- `pytest -v tests/test_assistant.py`: **7 passed in 0.99s** (100% pass on assistant test suite).
+- `python -m fisher --help`: Verified CLI options `--assist`, `--preview`, `--mock`, `--policy-path` correctly exposed and functional.
+
+#### 3. Exit Gates & Deliverable Status
+- [x] Command clearly documented in [`plan.md`](file:///d:/projects/fisher/plan.md) with instructions for manual gameplay + automatic minigame takeover.
+- [x] Pre-flight prerequisites specified (Screen 3, Borderless 1080p, 100% UI Zoom, Administrator terminal).
+- [x] Dedicated [`PHASE4_GUIDE.md`](file:///d:/projects/fisher/PHASE4_GUIDE.md) player guide created for quick reference.
+- [x] Zero regressions across all 69 test suites.
+
+#### 4. Review & Handoff Notes for Next Agent
+- **User Instructions:** The user can launch an Administrator PowerShell terminal in `D:\projects\fisher` and run `fisher --assist` (or `fisher --assist --preview`). They can then play Stardew Valley normally on Screen 3. When a fish bites and they click to hook, the BobberBar minigame will be handled automatically by the PPO policy, immediately releasing control when the fish is caught.
+- **Next Steps:** Proceed with autonomous autopilot extensions (Phase 5) if full unattended soak testing is desired in the future.
+
+
 

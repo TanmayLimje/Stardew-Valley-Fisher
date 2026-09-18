@@ -168,10 +168,13 @@ class FishingAssistant:
             )
         extractor = FeatureExtractor(bounds=track_bounds)
 
-        # Load policy
+        # Load policy — resolve relative paths against project root, not CWD
         policy = None
         obs_normalizer = None
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
         policy_file = Path(policy_path)
+        if not policy_file.is_absolute():
+            policy_file = project_root / policy_file
         if policy_file.exists():
             try:
                 from stable_baselines3 import PPO
@@ -179,8 +182,16 @@ class FishingAssistant:
                 logger.info("Loaded PPO policy from %s", policy_file)
             except Exception as exc:
                 logger.warning("Failed to load PPO policy: %s", exc)
+        else:
+            logger.warning(
+                "PPO policy not found at %s — falling back to bang-bang baseline. "
+                "Train a model with `fisher --train-sim` or pass --policy-path.",
+                policy_file,
+            )
 
         stats_file = Path(stats_path)
+        if not stats_file.is_absolute():
+            stats_file = project_root / stats_file
         if stats_file.exists():
             try:
                 import pickle
@@ -189,6 +200,11 @@ class FishingAssistant:
                 logger.info("Loaded VecNormalize stats from %s", stats_file)
             except Exception as exc:
                 logger.warning("Failed to load obs normalizer: %s", exc)
+        else:
+            logger.warning(
+                "VecNormalize stats not found at %s — observations will not be normalized.",
+                stats_file,
+            )
 
         # Assistant config section
         asst_cfg = config.raw.get("assistant", {})
